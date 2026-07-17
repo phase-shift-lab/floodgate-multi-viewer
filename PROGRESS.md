@@ -64,6 +64,9 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-18 | GitHub Actions CI（run 29617754223） | Linux Chromiumで1024×768の下段が数px超える差異を検出。公開済みPages自体はdeploy成功 |
 | 2026-07-18 | 1024×768安全余白修正 | 2×2時だけ重複するセクション見出しを省略。対象E2Eを3回連続実行して3/3成功 |
 | 2026-07-18 | 安全余白修正後の全検証 | lint・typecheck成功、Vitest 9 files / 32 tests、Playwright Chromium 6/6、production build 29 modules・JS gzip 71.70 kB |
+| 2026-07-18 | GitHub Actions CI / Pages（commit `00ee6d0`） | CI run 29618028996、Pages run 29618028966ともに成功 |
+| 2026-07-18 | 公開版レスポンシブ実測 | 1440×900は4×1・盤面288px、1024×768は2×2で縦横スクロールなし。390×844は既定1局・盤面343px・横はみ出しなし。全表示でダーク既定 |
+| 2026-07-18 | 公開版の最新局面・直前手確認 | 4局の「直前手」表示、移動先4件・移動元3件を確認。移動元なし1件はCSAの駒打ちで仕様どおり |
 
 ## 簡易品質チェック
 
