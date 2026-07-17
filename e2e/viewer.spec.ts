@@ -20,6 +20,13 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   expect(panelBoxes).toHaveLength(4);
   expect(panelBoxes.every(({ top, bottom }) => top >= 0 && bottom <= 900)).toBe(true);
   expect(panelBoxes[2].top).toBeGreaterThan(panelBoxes[0].top);
+  const boardBoxes = await page.locator('.shogi-board').evaluateAll((items) => items.map((item) => {
+    const box = item.getBoundingClientRect();
+    return { width: box.width, height: box.height };
+  }));
+  expect(boardBoxes).toHaveLength(4);
+  expect(Math.min(...boardBoxes.map(({ width }) => width))).toBeGreaterThanOrEqual(220);
+  expect(boardBoxes.every(({ width, height }) => Math.abs(width - height) <= 1)).toBe(true);
 
   await page.getByRole('button', { name: '1局' }).click();
   await expect(page.getByTestId('boards').locator('.game-panel')).toHaveCount(1);

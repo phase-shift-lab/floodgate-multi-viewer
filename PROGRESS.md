@@ -25,6 +25,7 @@
 - [x] Worker URLをGitHub Actions変数へ設定し、Pagesをライブ接続版として再配備
 - [x] 本番WorkerのCORS、Origin拒否、未許可パス拒否、実データ応答を確認
 - [x] PCの4局表示を盤面左・情報/操作右へ再配置し、1440×900で2×2の4局すべてをスクロールせず表示
+- [x] PCの4局表示でプレイヤー情報を操作側へ寄せ、1440×900の盤面を230pxまで拡大（受入下限220px）
 - [x] 初回表示をダークテーマに変更し、保存済みテーマは従来どおり復元
 
 公開先: https://phase-shift-lab.github.io/floodgate-multi-viewer/
@@ -56,6 +57,7 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-17 | 4局表示・初期テーマ調整後 `npm run build` | 成功、28 modules、JS gzip 71.46 kB |
 | 2026-07-17 | 1440×900 Playwright表示確認 | ダーク初期表示、盤面左・情報/操作右の2×2配置、4カードすべての下端が900px以内 |
 | 2026-07-17 | 4局全画面表示の最終検証 | lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
+| 2026-07-17 | 4局盤面拡大の最終検証 | 1440×900で4盤とも220px以上・全カード下端900px以内。lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
 
 ## 簡易品質チェック
 

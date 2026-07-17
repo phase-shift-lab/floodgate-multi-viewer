@@ -128,9 +128,10 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 }
 @media (min-width:1024px) {
   .four-board-main { padding-block:.75rem; }
+  .four-board-main .notice { margin-bottom:.5rem; padding:.55rem .75rem; }
   .four-board-main .board-section-head { margin-bottom:.5rem; }
   .boards.count-4 {
-    --four-board-size:clamp(168px,calc(50dvh - 16.875rem),190px);
+    --four-board-size:clamp(180px,16vw,260px);
     gap:.6rem;
   }
   .boards.count-4 .game-panel {
@@ -138,7 +139,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
     grid-template-columns:calc(var(--four-board-size) + 1rem) minmax(0,1fr);
     grid-template-areas:
       'header header'
-      'players players'
+      'board players'
       'board meta'
       'board newmoves'
       'board actions'
@@ -147,9 +148,10 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
     grid-template-rows:auto auto auto auto auto auto auto;
     align-items:stretch;
   }
-  .boards.count-4 .game-header { grid-area:header; padding:.4rem .55rem; }
+  .boards.count-4 .game-header { grid-area:header; padding:.3rem .45rem; }
+  .boards.count-4 .game-header select { padding:.3rem; }
   .boards.count-4 .players { grid-area:players; }
-  .boards.count-4 .players > div { padding:.35rem .5rem; }
+  .boards.count-4 .players > div { padding:.3rem .4rem; }
   .boards.count-4 .meta-row { grid-area:meta; padding:.35rem; gap:.25rem .65rem; align-content:center; }
   .boards.count-4 .new-moves { grid-area:newmoves; padding:.3rem; }
   .boards.count-4 .board-wrap,
@@ -176,6 +178,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .sr-message,
   .boards.count-4 .move-list,
   .boards.count-4 .evaluations { grid-column:1/-1; }
+  .boards.count-4 .evaluations { margin:.25rem .5rem; font-size:.62rem; }
 }
 @media (max-width:1023px) {
   .site-header { grid-template-columns:1fr auto; }
