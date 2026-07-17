@@ -61,6 +61,9 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-17 | 4局全画面表示の最終検証 | lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
 | 2026-07-17 | 4局盤面拡大の最終検証 | 1440×900で4盤とも220px以上・全カード下端900px以内。lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
 | 2026-07-18 | レスポンシブ4局表示の最終検証 | lint・typecheck成功、warning・型エラー0。Vitest 9 files / 32 tests、Playwright Chromium 6/6、production build 29 modules・JS gzip 71.70 kB |
+| 2026-07-18 | GitHub Actions CI（run 29617754223） | Linux Chromiumで1024×768の下段が数px超える差異を検出。公開済みPages自体はdeploy成功 |
+| 2026-07-18 | 1024×768安全余白修正 | 2×2時だけ重複するセクション見出しを省略。対象E2Eを3回連続実行して3/3成功 |
+| 2026-07-18 | 安全余白修正後の全検証 | lint・typecheck成功、Vitest 9 files / 32 tests、Playwright Chromium 6/6、production build 29 modules・JS gzip 71.70 kB |
 
 ## 簡易品質チェック
 

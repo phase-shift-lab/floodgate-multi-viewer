@@ -175,6 +175,9 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
     grid-template-columns:repeat(4,minmax(0,1fr));
   }
 }
+@media (min-width:768px) and (max-width:1199px) {
+  .four-board-main .board-section-head { display:none; }
+}
 @media (max-width:1023px) {
   .site-header { grid-template-columns:1fr auto; }
   .site-header nav { order:3; grid-column:1/-1; justify-content:center; }
