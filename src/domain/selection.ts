@@ -31,7 +31,14 @@ export function selectFeaturedGames(games: GameSummary[], count: number): GameSu
       const duplicateA = (used.get(a.black) ?? 0) + (used.get(a.white) ?? 0);
       const duplicateB = (used.get(b.black) ?? 0) + (used.get(b.white) ?? 0);
       const liveDelta = Number(b.live) - Number(a.live);
-      return liveDelta || duplicateA - duplicateB || compareGames(a, b);
+      const adjustedFloorA = rateFloor(a) - duplicateA * 25;
+      const adjustedFloorB = rateFloor(b) - duplicateB * 25;
+      const adjustedAverageA = rateAverage(a) - duplicateA * 25;
+      const adjustedAverageB = rateAverage(b) - duplicateB * 25;
+      return liveDelta
+        || adjustedFloorB - adjustedFloorA
+        || adjustedAverageB - adjustedAverageA
+        || b.startedAt.localeCompare(a.startedAt);
     });
     const next = pool.shift();
     if (!next) break;

@@ -36,9 +36,14 @@ describe('CSA parser', () => {
   });
 
   it('only trusts dense evaluation sequences', () => {
-    const trusted = parseCsa(`PI\n+\n+7776FU\n'** 10\n-3334FU\n'** -5`);
+    const trusted = parseCsa(`PI\n+\n+7776FU\n'** 10 -3334FU\n-3334FU\n'** -5 +2726FU`);
     const sparse = parseCsa(`PI\n+\n+7776FU\n'** 10\n-3334FU\n+2726FU\n-8384FU`);
     expect(trusted.evaluationsTrusted).toBe(true);
     expect(sparse.evaluationsTrusted).toBe(false);
+  });
+
+  it('parses ratings in current Floodgate CSA metadata', () => {
+    const game = parseCsa(`N+AobaZero\nN-nshogi-dev\n'black_rate:AobaZero:3393\n'white_rate:nshogi-dev:3776\nPI\n+`);
+    expect(game).toMatchObject({ blackRate: 3393, whiteRate: 3776 });
   });
 });

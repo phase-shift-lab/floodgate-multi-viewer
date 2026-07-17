@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GamePanel } from './components/GamePanel';
 import { loadCatalog, loadDay } from './data/client';
-import { loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
+import { addRecent, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
 import { compareGames, selectFeaturedGames } from './domain/selection';
 import type { GameSummary, ViewerSettings } from './domain/types';
 
@@ -9,11 +9,15 @@ interface Slot { id: string; pinned: boolean }
 
 export default function App() {
   const share = useMemo(() => readShareState(), []);
-  const [settings, setSettings] = useState<ViewerSettings>(() => ({ ...loadSettings(), ...(share.boards ? { boardCount: share.boards } : {}) }));
+  const [settings, setSettings] = useState<ViewerSettings>(() => ({
+    ...loadSettings(),
+    ...(share.boards ? { boardCount: share.boards } : {}),
+    ...(share.orientation ? { orientation: share.orientation } : {}),
+  }));
   const [games, setGames] = useState<GameSummary[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [favorites, setFavorites] = useState(loadFavorites);
-  const [recent] = useState(loadRecent);
+  const [recent, setRecent] = useState(loadRecent);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fixture' | 'empty' | 'error'>('loading');
   const [view, setView] = useState<'live' | 'archive'>(share.view ?? 'live');
   const [expanded, setExpanded] = useState<number>();
@@ -25,6 +29,7 @@ export default function App() {
   const [minRate, setMinRate] = useState('');
   const [maxRate, setMaxRate] = useState('');
   const [sort, setSort] = useState<'new' | 'high' | 'low'>('new');
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -85,6 +90,10 @@ export default function App() {
     });
   };
 
+  const recordViewed = useCallback((id: string) => {
+    setRecent(addRecent(id));
+  }, []);
+
   const searchDay = async () => {
     if (!historyDate) return;
     const controller = new AbortController();
@@ -100,15 +109,17 @@ export default function App() {
     const term = query.trim().toLowerCase();
     const min = minRate ? Number(minRate) : -Infinity;
     const max = maxRate ? Number(maxRate) : Infinity;
+    const hasRateBounds = Boolean(minRate || maxRate);
     return games.filter((game) => {
       const rates = [game.blackRate, game.whiteRate].filter((rate): rate is number => rate !== undefined);
-      const ratingMatch = !rates.length || rates.some((rate) => rate >= min && rate <= max);
+      const ratingMatch = !hasRateBounds || (rates.length > 0 && rates.some((rate) => rate >= min && rate <= max));
       return (!term || game.black.toLowerCase().includes(term) || game.white.toLowerCase().includes(term))
         && (group === 'all' || game.group === group)
         && (resultFilter === 'all' || (resultFilter === 'live' ? game.live : !game.live && (resultFilter === 'finished' || game.result?.includes(resultFilter))))
+        && (!favoriteOnly || favorites.includes(game.black) || favorites.includes(game.white))
         && ratingMatch;
     }).sort((a, b) => sort === 'high' ? compareGames(a, b) : sort === 'low' ? compareGames(b, a) : b.startedAt.localeCompare(a.startedAt));
-  }, [games, query, group, resultFilter, minRate, maxRate, sort]);
+  }, [games, query, group, resultFilter, minRate, maxRate, sort, favoriteOnly, favorites]);
 
   const visibleSlots = expanded !== undefined ? slots.slice(expanded, expanded + 1) : slots.slice(0, settings.boardCount);
 
@@ -144,7 +155,9 @@ export default function App() {
             <label>レート下限<input type="number" value={minRate} onChange={(event) => setMinRate(event.target.value)} placeholder="例 2500" /></label>
             <label>レート上限<input type="number" value={maxRate} onChange={(event) => setMaxRate(event.target.value)} placeholder="例 4000" /></label>
             <label>並び順<select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="new">新しい順</option><option value="high">上位レート順</option><option value="low">下位レート順</option></select></label>
+            <label><input type="checkbox" checked={favoriteOnly} onChange={(event) => setFavoriteOnly(event.target.checked)} />お気に入りAIのみ</label>
           </div>
+          <details className="recent-games"><summary>最近見た対局（{recent.length}）</summary>{recent.length ? <ul>{recent.map((id) => <li key={id}><button disabled={!games.some((game) => game.id === id)} onClick={() => { setSlots((current) => [{ id, pinned: false }, ...current.slice(1)]); setView('live'); }}>{games.find((game) => game.id === id)?.black ?? id} {games.find((game) => game.id === id) ? `vs ${games.find((game) => game.id === id)?.white}` : '（一覧外）'}</button></li>)}</ul> : <p>まだありません。</p>}</details>
           <div className="archive-list">{filteredGames.map((game) => <button key={game.id} onClick={() => { setSlots((current) => [{ id: game.id, pinned: false }, ...current.slice(1)]); setView('live'); }}><span>{game.live ? 'LIVE' : game.result ?? '終局'}</span><strong>{game.black} <small>vs</small> {game.white}</strong><span>{game.startedAt ? new Date(game.startedAt).toLocaleString('ja-JP') : '日時不明'} · {game.group}</span></button>)}</div>
         </section>}
 
@@ -155,7 +168,7 @@ export default function App() {
               const summary = games.find((game) => game.id === slot.id);
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
-              return <GamePanel key={`${realIndex}:${slot.id}`} summary={summary} games={games} defaultSpeed={settings.playbackSeconds} initialPly={realIndex === 0 ? share.ply : undefined} defaultFlipped={settings.orientation === 'white'} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
+              return <GamePanel key={`${realIndex}:${slot.id}`} summary={summary} games={games} defaultSpeed={settings.playbackSeconds} initialPly={realIndex === 0 ? share.ply : undefined} defaultFlipped={settings.orientation === 'white'} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
             })}
           </div>}
         </section>}

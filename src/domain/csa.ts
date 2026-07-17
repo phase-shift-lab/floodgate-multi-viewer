@@ -86,7 +86,7 @@ function meta(lines: string[], key: string): string | undefined {
 }
 
 function parseRate(text: string, side: 'black' | 'white'): number | undefined {
-  const match = text.match(new RegExp(`(?:['$]?)${side}[_ -]?rate\\s*[:=]\\s*(-?\\d+(?:\\.\\d+)?)`, 'i'));
+  const match = text.match(new RegExp(`(?:['$]?)${side}[_ -]?rate\\s*[:=]\\s*(?:[^\\r\\n:]+:)?(-?\\d+(?:\\.\\d+)?)`, 'i'));
   return match ? Number(match[1]) : undefined;
 }
 
@@ -111,7 +111,7 @@ export function parseCsa(text: string, fallbackId = 'fixture-game'): ParsedGame 
     }
     const time = line.match(/^T(\d+)$/);
     if (time && lastMove) lastMove.time = Number(time[1]);
-    const evaluation = line.match(/^'\*\*\s*(-?\d+)\s*$/);
+    const evaluation = line.match(/^'\*\*\s*(-?\d+)(?:\s|$)/);
     if (evaluation && lastMove) {
       lastMove.evaluation = Number(evaluation[1]);
       evaluationCount += 1;

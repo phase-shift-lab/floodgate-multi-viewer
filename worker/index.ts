@@ -4,6 +4,7 @@ export interface Env {
 
 const UPSTREAM = 'https://wdoor.c.u-tokyo.ac.jp';
 const FETCH_TIMEOUT_MS = 8_000;
+const STALE_RETENTION_SECONDS = 86_400;
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const CSA_PATTERN = /^wdoor\+[^/\\]+\+(\d{14})\.csa$/i;
 
@@ -81,16 +82,30 @@ async function fetchWithTimeout(url: string): Promise<Response> {
   throw lastError instanceof Error ? lastError : new Error('upstream unavailable');
 }
 
-async function proxy(request: Request, env: Env, path: string): Promise<Response> {
+export function cachePolicy(path: string): { browser: string; edgeSeconds: number } {
+  if (path.includes('/rating/')) return { browser: 'public, max-age=3600', edgeSeconds: 21_600 };
+  if (path.endsWith('.csa')) return { browser: 'no-store', edgeSeconds: 3 };
+  return { browser: 'public, max-age=5', edgeSeconds: 15 };
+}
+
+export function cachedResponseIsFresh(response: Response, edgeSeconds: number, now = Date.now()): boolean {
+  const cachedAt = Date.parse(response.headers.get('X-FGMV-Cached-At') ?? '');
+  const age = now - cachedAt;
+  return Number.isFinite(cachedAt) && age >= 0 && age <= edgeSeconds * 1_000;
+}
+
+async function proxy(request: Request, env: Env, path: string, context: ExecutionContext): Promise<Response> {
   const origin = allowedOrigin(request, env);
   if (origin === '') return response('Origin not allowed', 403, null);
   const cache = caches.default;
   const cacheKey = new Request(`${UPSTREAM}${path}`, { method: 'GET' });
   const cached = await cache.match(cacheKey);
+  const policy = cachePolicy(path);
+  if (cached && cachedResponseIsFresh(cached, policy.edgeSeconds)) return decorate(cached, origin, false, policy.browser);
   try {
     const upstream = await fetchWithTimeout(cacheKey.url);
     if (!upstream.ok) {
-      if (cached) return decorate(cached, origin, true);
+      if (cached) return decorate(cached, origin, true, policy.browser);
       return response(`Upstream ${upstream.status}`, upstream.status, origin);
     }
     const body = await upstream.arrayBuffer();
@@ -98,25 +113,24 @@ async function proxy(request: Request, env: Env, path: string): Promise<Response
       status: 200,
       headers: {
         'Content-Type': upstream.headers.get('Content-Type') ?? (path.endsWith('.csa') ? 'text/plain; charset=utf-8' : 'text/html; charset=utf-8'),
-        'Cache-Control': path.includes('/rating/')
-          ? 'public, max-age=3600, s-maxage=21600, stale-while-revalidate=86400'
-          : path.endsWith('.csa')
-            ? 'public, max-age=30, s-maxage=60, stale-while-revalidate=300'
-            : 'public, max-age=10, s-maxage=20, stale-while-revalidate=120',
+        // Keep an expired copy at the edge so it can be served as stale during
+        // an upstream outage. The browser policy is applied only on egress.
+        'Cache-Control': `public, max-age=${STALE_RETENTION_SECONDS}`,
         'X-FGMV-Cached-At': new Date().toISOString(),
       },
     });
-    await cache.put(cacheKey, stored.clone());
-    return decorate(stored, origin, false);
+    context.waitUntil(cache.put(cacheKey, stored.clone()));
+    return decorate(stored, origin, false, policy.browser);
   } catch {
-    if (cached) return decorate(cached, origin, true);
+    if (cached) return decorate(cached, origin, true, policy.browser);
     return response('Upstream unavailable', 503, origin);
   }
 }
 
-function decorate(source: Response, origin: string | null, stale: boolean): Response {
+function decorate(source: Response, origin: string | null, stale: boolean, browserCache: string): Response {
   const headers = new Headers(source.headers);
   Object.entries(corsHeaders(origin)).forEach(([key, value]) => headers.set(key, value));
+  headers.set('Cache-Control', browserCache);
   headers.set('X-FGMV-Stale', stale ? '1' : '0');
   return new Response(source.body, { status: source.status, headers });
 }
@@ -130,13 +144,13 @@ export function resolvePath(url: URL, now = new Date()): string | null {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: ExecutionContext): Promise<Response> {
     const origin = allowedOrigin(request, env);
     if (origin === '') return response('Origin not allowed', 403, null);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(origin) });
     if (request.method !== 'GET') return response('Method not allowed', 405, origin);
     const path = resolvePath(new URL(request.url));
     if (!path) return response('Not found or invalid parameter', 404, origin);
-    return proxy(request, env, path);
+    return proxy(request, env, path, context);
   },
 } satisfies ExportedHandler<Env>;

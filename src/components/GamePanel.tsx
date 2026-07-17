@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadGame, pollDelay } from '../data/client';
-import { addRecent, shareUrl } from '../data/preferences';
+import { shareUrl } from '../data/preferences';
 import { boardAt, formatMove } from '../domain/csa';
 import { clampPlaybackSeconds, nextPlaybackPly, playbackDelayMs } from '../domain/playback';
 import { rateLabel } from '../domain/selection';
@@ -20,6 +20,7 @@ interface Props {
   onSelect: (id: string) => void;
   onPin: () => void;
   onFavorite: (name: string) => void;
+  onViewed: (id: string) => void;
   onSpeedChange: (seconds: number) => void;
   onExpand: () => void;
   expanded: boolean;
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function GamePanel(props: Props) {
+  const onViewed = props.onViewed;
   const [game, setGame] = useState<ParsedGame>();
   const [ply, setPly] = useState(props.initialPly ?? Number.MAX_SAFE_INTEGER);
   const [flipped, setFlipped] = useState(props.defaultFlipped);
@@ -44,6 +46,10 @@ export function GamePanel(props: Props) {
   const gameLengthRef = useRef(0);
 
   useEffect(() => {
+    onViewed(props.summary.id);
+  }, [props.summary.id, onViewed]);
+
+  useEffect(() => {
     lastPly.current = ply;
   }, [ply]);
 
@@ -51,20 +57,20 @@ export function GamePanel(props: Props) {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     followingRef.current = props.initialPly === undefined;
-    addRecent(props.summary.id);
     const poll = async () => {
       try {
         const result = await loadGame(props.summary, controller.signal);
-        failures.current = 0;
+        const failureCount = result.fixture ? failures.current + 1 : 0;
+        failures.current = failureCount;
         setGame((previous) => {
           if (previous && result.game.moveList.length > previous.moveList.length && lastPly.current < previous.moveList.length) setNewMoves(true);
           return result.game;
         });
         setPly((current) => current === Number.MAX_SAFE_INTEGER || (followingRef.current && current >= gameLengthRef.current) ? result.game.moveList.length : Math.min(current, result.game.moveList.length));
         gameLengthRef.current = result.game.moveList.length;
-        setConnection(result.fixture ? 'offline' : result.stale ? 'stale' : 'online');
+        setConnection(result.fixture ? failureCount >= 5 ? 'paused' : 'offline' : result.stale ? 'stale' : 'online');
         setFetchedAt(result.fetchedAt);
-        if (props.summary.live) timeout = setTimeout(poll, pollDelay(0, document.hidden));
+        if (props.summary.live) timeout = setTimeout(poll, pollDelay(failureCount, document.hidden));
       } catch {
         if (controller.signal.aborted) return;
         failures.current += 1;
@@ -74,9 +80,7 @@ export function GamePanel(props: Props) {
     };
     void poll();
     return () => { controller.abort(); if (timeout) clearTimeout(timeout); };
-  // The loop owns the current game length; restarting only on a new game is intentional.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.summary.id]);
+  }, [props.summary, props.initialPly]);
 
   const maxPly = game?.moveList.length ?? 0;
   const safePly = Math.min(ply, maxPly);
@@ -111,7 +115,7 @@ export function GamePanel(props: Props) {
   };
 
   const copyShare = async () => {
-    const url = shareUrl({ game: props.summary.id, ply: safePly, view: props.summary.live ? 'live' : 'archive', boards: props.boardCount });
+    const url = shareUrl({ game: props.summary.id, ply: safePly, view: props.summary.live ? 'live' : 'archive', boards: props.boardCount, orientation: flipped ? 'white' : 'black' });
     try { await navigator.clipboard.writeText(url); setShareMessage('URLをコピーしました'); }
     catch { setShareMessage(url); }
   };

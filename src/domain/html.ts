@@ -22,7 +22,7 @@ export function summaryFromCsaName(fileName: string, context = ''): GameSummary 
   const group = fields.slice(1, -3).join('+') || fields[0] || 'floodgate';
   const resultMatch = context.match(/(?:result|結果)\s*[:：]?\s*([^|\s<]+)/i);
   const movesMatch = context.match(/(?:moves?|手数)\s*[:：]?\s*(\d+)/i);
-  const live = !/(?:TORYO|SENNICHITE|JISHOGI|先手勝|後手勝|draw|finished|終局)/i.test(context);
+  const live = !/(?:TORYO|SENNICHITE|JISHOGI|blackwin|whitewin|先手勝|後手勝|draw|finished|終局)/i.test(context);
   return {
     id: clean,
     group,
@@ -44,8 +44,18 @@ export function parseGameListHtml(html: string): GameSummary[] {
     const href = anchor.getAttribute('href') ?? '';
     const matched = href.match(CSA_NAME);
     if (!matched) continue;
-    const summary = summaryFromCsaName(matched[1], anchor.closest('tr')?.textContent ?? anchor.parentElement?.textContent ?? '');
+    const container = anchor.closest('li.gameitem, tr') ?? anchor.parentElement;
+    const summary = summaryFromCsaName(matched[1], container?.textContent ?? '');
     if (summary && !seen.has(summary.id)) {
+      const moves = container?.querySelector('.gi-moves')?.textContent?.trim();
+      const upstreamResult = container?.querySelector('.gi-result')?.textContent?.trim().toLowerCase();
+      if (moves && /^\d+$/.test(moves)) summary.moves = Number(moves);
+      if (upstreamResult) {
+        summary.live = false;
+        summary.result = upstreamResult === 'blackwin' ? '先手勝ち'
+          : upstreamResult === 'whitewin' ? '後手勝ち'
+            : upstreamResult === 'draw' ? '引き分け' : upstreamResult;
+      }
       seen.add(summary.id);
       games.push(summary);
     }

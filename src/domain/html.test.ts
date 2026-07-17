@@ -16,4 +16,9 @@ describe('Floodgate HTML parsers', () => {
     const html = '<a href="readme.txt">x</a><a href="wdoor+g+A+B+20260717123456.csa">1</a><a href="wdoor+g+A+B+20260717123456.csa">2</a>';
     expect(parseGameListHtml(html)).toHaveLength(1);
   });
+
+  it('parses the current official li gameitem structure', () => {
+    const html = `<li class="gameitem floodgate30"><a href="game.html">2026-07-17 16:30:00</a><span class="gi-moves">104</span><span class="gi-result">whitewin</span>(<a href="wdoor+floodgate-300-10F+AobaZero+nshogi-dev+20260717163004.csa">csa</a>)</li>`;
+    expect(parseGameListHtml(html)[0]).toMatchObject({ moves: 104, live: false, result: '後手勝ち' });
+  });
 });

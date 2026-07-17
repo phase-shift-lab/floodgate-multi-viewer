@@ -1,70 +1,80 @@
-V2.2
-N+dlshogi_x64
-N-YaneuraOu_7.6.3
-$EVENT:wdoor+floodgate-300-10F+dlshogi_x64+YaneuraOu_7.6.3+20260717093000
-$START_TIME:2026/07/17 09:30:00
-'black_rate:3854.2
-'white_rate:3721.8
-PI
+V2
+N+AobaZero_w4738_n_p800
+N-nshogi-dev-5070
+'Max_Moves:512
+'Increment:10
+$EVENT:wdoor+floodgate-300-10F+AobaZero_w4738_n_p800+nshogi-dev-5070+20260717163004
+$START_TIME:2026/07/17 16:30:00
+P1-KY-KE-GI-KI-OU-KI-GI-KE-KY
+P2 * -HI *  *  *  *  * -KA *
+P3-FU-FU-FU-FU-FU-FU-FU-FU-FU
+P4 *  *  *  *  *  *  *  *  *
+P5 *  *  *  *  *  *  *  *  *
+P6 *  *  *  *  *  *  *  *  *
+P7+FU+FU+FU+FU+FU+FU+FU+FU+FU
+P8 * +KA *  *  *  *  * +HI *
+P9+KY+KE+GI+KI+OU+KI+GI+KE+KY
 +
+'black_rate:AobaZero_w4738_n_p800:3393
+'white_rate:nshogi-dev-5070:3776
 +7776FU
-T1
-'** 24
+T2
+'** 56 -2726FU -8384FU
+-8384FU
+T28
+'** 62 +2625FU
++7978GI
+T3
+'** 32 -3334FU
 -3334FU
-T1
-'** -18
+T3
+'** 43 +7877GI
++7877GI
+T2
+'** 20 -8485FU
+-8485FU
+T17
+'** 62 +5756FU
++5756FU
+T2
+'** 20 -7162GI
+-7162GI
+T26
+'** 52 +8879KA
++8879KA
+T3
+'** 25 -7374FU
+-7374FU
+T17
+'** 31 +2726FU
 +2726FU
 T2
-'** 31
--8384FU
-T1
-'** -22
+'** 36 -8173KE
+-8173KE
+T32
+'** 17 +6766FU
++6766FU
+T2
+'** 24 -3142GI
+-3142GI
+T121
+'** 42 +2625FU
 +2625FU
-T1
-'** 45
--8485FU
 T2
-'** -35
-+6978KI
-T2
-'** 52
+'** 91 -4132KI
 -4132KI
 T1
-'** -41
+'** 39 +2524FU
 +2524FU
-T3
-'** 110
+T2
+'** 100 -2324FU
 -2324FU
 T1
-'** -85
-+2824HI
-T1
-'** 132
--0023FU
-T2
-'** -101
-+2428HI
-T1
-'** 96
--2288UM
-T4
-'** -72
-+7988GI
-T1
-'** 88
--3122GI
-T2
-'** -66
-+8877GI
-T1
-'** 93
--7172GI
-T2
-'** -70
-+3948GI
-T1
-'** 105
--5142OU
+'** 33 +7924KA
++7924KA
 T3
-'** -83
+'** 119 -0023FU
+-0023FU
+T1
+'** 40 +2423TO
 %TORYO

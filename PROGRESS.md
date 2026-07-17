@@ -12,12 +12,15 @@
 - [x] HTML/CSA/レート解析、実データ由来fixture
 - [x] 固定ホスト・固定パスCloudflare Worker
 - [x] 盤面・ライブ・過去局・保存・共有UI
-- [x] Vitest 18件、Playwright 5件、lint、typecheck、build
+- [x] Vitest 27件、Playwright 5件、lint、typecheck、build
 - [x] README、ARCHITECTURE、DEPLOY
 - [x] GitHub Actions CI、GitHub Pages workflow
 - [x] Worker dry-runバンドル
 - [x] GitHub公開リポジトリ作成、commit、push
 - [x] GitHub Pages公開と公開URLのHTTP確認
+- [x] 2026-07-17実ページのDOM・レート・CSA形式を再監査し、parser/fixtureを追従
+- [x] Workerのedge/browser cache分離、24時間stale保持、CSA短期更新を検証
+- [x] fixture時の指数バックオフ、更新停止表示、要求対局へのfixture適合を検証
 
 ## 外部認証待ち
 
@@ -35,12 +38,12 @@
 | 2026-07-17 | Node/npm/gh/CORS事前調査 | Node 24.14.1、npm 11.11.0、gh認証済み、上流CORSなし |
 | 2026-07-17 | `npm run lint` | 成功、warning 0 |
 | 2026-07-17 | `npm run typecheck` | 成功、UI/Workerともエラー0 |
-| 2026-07-17 | `npm run test` | 成功、6 files / 18 tests |
+| 2026-07-17 | `npm run test` | 成功、8 files / 27 tests |
 | 2026-07-17 | `npm run test:e2e` | 成功、Chromium 5/5 |
-| 2026-07-17 | `npm run build` | 成功、28 modules、JS gzip 70.40 kB |
-| 2026-07-17 | `npm run deploy:worker -- --dry-run` | 成功、upload gzip 2.21 KiB |
+| 2026-07-17 | `npm run build` | 成功、28 modules、JS gzip 71.46 kB |
+| 2026-07-17 | `npm run deploy:worker -- --dry-run` | 成功、upload gzip 2.52 KiB |
 | 2026-07-17 | `npx wrangler whoami` | 未認証。`wrangler login` が必要 |
-| 2026-07-17 | GitHub Actions CI | 成功、lint/typecheck/unit 18件/E2E 5件/build |
+| 2026-07-17 | GitHub Actions CI | 既公開commitで成功。今回のunit 27件版はpush後に再確認 |
 | 2026-07-17 | GitHub Pages deploy | 成功、Actions run 29565055698 |
 | 2026-07-17 | 公開URL確認 | HTML 200、タイトル一致、サブパスJS 200 |
 

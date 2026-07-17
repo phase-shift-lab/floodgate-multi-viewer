@@ -50,7 +50,7 @@ export function addRecent(id: string): string[] {
   return next;
 }
 
-export interface ShareState { game?: string; ply?: number; view?: 'live' | 'archive'; boards?: 1 | 2 | 4 }
+export interface ShareState { game?: string; ply?: number; view?: 'live' | 'archive'; boards?: 1 | 2 | 4; orientation?: 'black' | 'white' }
 
 export function readShareState(search = location.search): ShareState {
   const params = new URLSearchParams(search);
@@ -60,6 +60,7 @@ export function readShareState(search = location.search): ShareState {
     ply: params.has('ply') ? Math.max(0, Number(params.get('ply'))) : undefined,
     view: params.get('view') === 'archive' ? 'archive' : params.get('view') === 'live' ? 'live' : undefined,
     boards: [1, 2, 4].includes(boards) ? boards as 1 | 2 | 4 : undefined,
+    orientation: params.get('orientation') === 'white' ? 'white' : params.get('orientation') === 'black' ? 'black' : undefined,
   };
 }
 
@@ -70,5 +71,6 @@ export function shareUrl(state: ShareState): string {
   if (state.ply !== undefined) url.searchParams.set('ply', String(state.ply));
   if (state.view) url.searchParams.set('view', state.view);
   if (state.boards) url.searchParams.set('boards', String(state.boards));
+  if (state.orientation) url.searchParams.set('orientation', state.orientation);
   return url.toString();
 }

@@ -83,7 +83,7 @@ export async function loadGame(summary: GameSummary, signal: AbortSignal): Promi
     return { game: { ...parseCsa(response.text, summary.id), ...summary, sourceText: response.text }, stale: response.stale, fixture: false, fetchedAt: new Date() };
   } catch (error) {
     if (signal.aborted) throw error;
-    return { game: fixtureGame(summary.id), stale: true, fixture: true, fetchedAt: new Date() };
+    return { game: fixtureGame(summary), stale: true, fixture: true, fetchedAt: new Date() };
   }
 }
 

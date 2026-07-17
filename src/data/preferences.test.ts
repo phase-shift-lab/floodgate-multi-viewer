@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addRecent, loadFavorites, loadRecent, saveFavorites } from './preferences';
+import { addRecent, loadFavorites, loadRecent, readShareState, saveFavorites, shareUrl } from './preferences';
 
 describe('preferences', () => {
   beforeEach(() => localStorage.clear());
@@ -19,5 +19,10 @@ describe('preferences', () => {
 
     expect(loadFavorites()).toEqual([]);
     expect(loadRecent()).toEqual([]);
+  });
+
+  it('共有URLで対局・手数・表示局数・盤面方向を復元できる', () => {
+    const url = new URL(shareUrl({ game: 'game-1', ply: 12, view: 'archive', boards: 2, orientation: 'white' }));
+    expect(readShareState(url.search)).toEqual({ game: 'game-1', ply: 12, view: 'archive', boards: 2, orientation: 'white' });
   });
 });

@@ -22,7 +22,16 @@ describe('featured game selection', () => {
       game('diverse', 'D', 'E', 3300, 3300),
       game('finished', 'F', 'G', 3400, 3400, false, 'g', '2026-02-01'),
     ];
-    expect(selectFeaturedGames(values, 4).map((value) => value.id)).toEqual(['best', 'diverse', 'duplicate', 'finished']);
+    expect(selectFeaturedGames(values, 4).map((value) => value.id)).toEqual(['best', 'duplicate', 'diverse', 'finished']);
+  });
+
+  it('uses the light duplicate penalty to break near-strength choices', () => {
+    const values = [
+      game('best', 'A', 'B', 3500, 3500),
+      game('duplicate', 'A', 'C', 3490, 3490),
+      game('diverse', 'D', 'E', 3480, 3480),
+    ];
+    expect(selectFeaturedGames(values, 3).map((value) => value.id)).toEqual(['best', 'diverse', 'duplicate']);
   });
 
   it('labels unavailable ratings explicitly', () => {

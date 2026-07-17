@@ -7,13 +7,17 @@ import type { GameSummary, ParsedGame } from '../domain/types';
 
 const baseGames = attachRatings(parseGameListHtml(todayHtml), parsePlayerRatingsHtml(ratingsHtml));
 
-function gameFromSummary(summary: GameSummary): ParsedGame {
-  const source = sampleCsa
+export function gameFromSummary(summary: GameSummary): ParsedGame {
+  let source = sampleCsa
     .replace(/N\+.*$/m, `N+${summary.black}`)
     .replace(/N-.*$/m, `N-${summary.white}`)
-    .replace(/^\$EVENT:.*$/m, `$EVENT:${summary.id}`)
-    .replace(/'black_rate:.*$/m, `'black_rate:${summary.blackRate ?? 0}`)
-    .replace(/'white_rate:.*$/m, `'white_rate:${summary.whiteRate ?? 0}`);
+    .replace(/^\$EVENT:.*$/m, `$EVENT:${summary.id}`);
+  source = summary.blackRate === undefined
+    ? source.replace(/^'black_rate:.*\r?\n?/m, '')
+    : source.replace(/^'black_rate:.*$/m, `'black_rate:${summary.blackRate}`);
+  source = summary.whiteRate === undefined
+    ? source.replace(/^'white_rate:.*\r?\n?/m, '')
+    : source.replace(/^'white_rate:.*$/m, `'white_rate:${summary.whiteRate}`);
   const liveSource = summary.live ? source.replace(/\n%TORYO\s*$/, '') : source;
   return { ...parseCsa(liveSource, summary.id), ...summary, sourceText: liveSource };
 }
@@ -34,8 +38,8 @@ export const fixtureSummaries: GameSummary[] = fixtureGames.map((game) => ({
   csaPath: game.csaPath,
 }));
 
-export function fixtureGame(id: string): ParsedGame {
-  return fixtureGames.find((game) => game.id === id) ?? fixtureGames[0];
+export function fixtureGame(summary: GameSummary): ParsedGame {
+  return fixtureGames.find((game) => game.id === summary.id) ?? gameFromSummary(summary);
 }
 
 export { ratingsHtml, sampleCsa, todayHtml };
