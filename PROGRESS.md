@@ -16,12 +16,17 @@
 - [x] README、ARCHITECTURE、DEPLOY
 - [x] GitHub Actions CI、GitHub Pages workflow
 - [x] Worker dry-runバンドル
+- [x] GitHub公開リポジトリ作成、commit、push
+- [x] GitHub Pages公開と公開URLのHTTP確認
 
-## 公開作業中
+## 外部認証待ち
 
-- [ ] GitHubリポジトリ作成、commit、push
-- [ ] GitHub Pages公開と公開URL確認
-- [ ] Worker本番配備（Wrangler未認証。コード・dry-runは完了）
+- [ ] Worker本番配備（Cloudflare/Wrangler未認証。コード・dry-run・手順書は完了）
+- [ ] Worker URLをGitHub Actions変数へ設定し、Pagesをライブ接続版として再配備
+
+公開先: https://phase-shift-lab.github.io/floodgate-multi-viewer/
+
+現在のPages版は上流接続先が未設定のためfixtureへ安全にフォールバックします。Cloudflare認証後の最終手順は `DEPLOY.md` に記載しています。
 
 ## 検証記録
 
@@ -35,3 +40,15 @@
 | 2026-07-17 | `npm run build` | 成功、28 modules、JS gzip 70.40 kB |
 | 2026-07-17 | `npm run deploy:worker -- --dry-run` | 成功、upload gzip 2.21 KiB |
 | 2026-07-17 | `npx wrangler whoami` | 未認証。`wrangler login` が必要 |
+| 2026-07-17 | GitHub Actions CI | 成功、lint/typecheck/unit 18件/E2E 5件/build |
+| 2026-07-17 | GitHub Pages deploy | 成功、Actions run 29565055698 |
+| 2026-07-17 | 公開URL確認 | HTML 200、タイトル一致、サブパスJS 200 |
+
+## 簡易品質チェック
+
+- 目的・完了条件への適合: 26/30（Worker本番接続だけ外部認証待ち）
+- 仕様・設計の一貫性: 20/20
+- 安全性・戻しやすさ: 15/15
+- 検証の妥当性: 20/20
+- 保守性・レート効率: 14/15
+- 合計: 95/100
