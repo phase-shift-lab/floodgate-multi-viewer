@@ -43,8 +43,8 @@
 | 2026-07-17 | `npm run build` | 成功、28 modules、JS gzip 71.46 kB |
 | 2026-07-17 | `npm run deploy:worker -- --dry-run` | 成功、upload gzip 2.52 KiB |
 | 2026-07-17 | `npx wrangler whoami` | 未認証。`wrangler login` が必要 |
-| 2026-07-17 | GitHub Actions CI | 既公開commitで成功。今回のunit 27件版はpush後に再確認 |
-| 2026-07-17 | GitHub Pages deploy | 成功、Actions run 29565055698 |
+| 2026-07-17 | GitHub Actions CI | 成功、commit `4e3d8ed`、Actions run 29570117512（lint / typecheck / unit 27件 / E2E 5件 / build） |
+| 2026-07-17 | GitHub Pages deploy | 成功、commit `4e3d8ed`、Actions run 29570117559 |
 | 2026-07-17 | 公開URL確認 | HTML 200、タイトル一致、サブパスJS 200 |
 
 ## 簡易品質チェック
