@@ -1,6 +1,6 @@
 # 実施状況
 
-更新日: 2026-07-17
+更新日: 2026-07-18
 
 ## 完了
 
@@ -12,7 +12,7 @@
 - [x] HTML/CSA/レート解析、実データ由来fixture
 - [x] 固定ホスト・固定パスCloudflare Worker
 - [x] 盤面・ライブ・過去局・保存・共有UI
-- [x] Vitest 28件、Playwright 5件、lint、typecheck、build
+- [x] Vitest 32件、Playwright 6件、lint、typecheck、build
 - [x] README、ARCHITECTURE、DEPLOY
 - [x] GitHub Actions CI、GitHub Pages workflow
 - [x] Worker dry-runバンドル
@@ -24,8 +24,10 @@
 - [x] Cloudflare Worker本番配備、preview URL無効化
 - [x] Worker URLをGitHub Actions変数へ設定し、Pagesをライブ接続版として再配備
 - [x] 本番WorkerのCORS、Origin拒否、未許可パス拒否、実データ応答を確認
-- [x] PCの4局表示を盤面左・情報/操作右へ再配置し、1440×900で2×2の4局すべてをスクロールせず表示
-- [x] PCの4局表示でプレイヤー情報を操作側へ寄せ、1440×900の盤面を230pxまで拡大（受入下限220px）
+- [x] 4局表示を盤面上・操作/詳細下へ再配置し、広いPCでは4×1、狭いPCでは2×2、スマートフォンでは1列へ自動変形
+- [x] 1440×900の4×1で盤面220px以上、1024×768の2×2で4局をページスクロールなしに表示
+- [x] スマートフォンは既定1局、2/4局選択時は横にはみ出さず縦1列に配置
+- [x] 最新局面の即時追従、過去局面閲覧時の追従停止、直前手の移動元・移動先強調を分離して実装
 - [x] 初回表示をダークテーマに変更し、保存済みテーマは従来どおり復元
 
 公開先: https://phase-shift-lab.github.io/floodgate-multi-viewer/
@@ -58,6 +60,7 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-17 | 1440×900 Playwright表示確認 | ダーク初期表示、盤面左・情報/操作右の2×2配置、4カードすべての下端が900px以内 |
 | 2026-07-17 | 4局全画面表示の最終検証 | lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
 | 2026-07-17 | 4局盤面拡大の最終検証 | 1440×900で4盤とも220px以上・全カード下端900px以内。lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
+| 2026-07-18 | レスポンシブ4局表示の最終検証 | lint・typecheck成功、warning・型エラー0。Vitest 9 files / 32 tests、Playwright Chromium 6/6、production build 29 modules・JS gzip 71.70 kB |
 
 ## 簡易品質チェック
 

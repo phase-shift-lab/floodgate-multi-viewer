@@ -124,7 +124,7 @@ export default function App() {
   const visibleSlots = expanded !== undefined ? slots.slice(expanded, expanded + 1) : slots.slice(0, settings.boardCount);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${view === 'live' && visibleSlots.length === 4 ? ' four-board-view' : ''}`}>
       <a className="skip-link" href="#main">本文へ移動</a>
       <header className="site-header">
         <div className="title-block"><span className="mark" aria-hidden="true">多</span><div><h1>Floodgate Multi Viewer</h1><p>公開棋譜を静かに、見やすく。</p></div></div>
@@ -161,7 +161,7 @@ export default function App() {
           <div className="archive-list">{filteredGames.map((game) => <button key={game.id} onClick={() => { setSlots((current) => [{ id: game.id, pinned: false }, ...current.slice(1)]); setView('live'); }}><span>{game.live ? 'LIVE' : game.result ?? '終局'}</span><strong>{game.black} <small>vs</small> {game.white}</strong><span>{game.startedAt ? new Date(game.startedAt).toLocaleString('ja-JP') : '日時不明'} · {game.group}</span></button>)}</div>
         </section>}
 
-        {view === 'live' && <section aria-label="対局盤面">
+        {view === 'live' && <section className="live-section" aria-label="対局盤面">
           <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span><i className="live-dot" />ライブ</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
           {status === 'loading' ? <div className="board-skeleton" role="status">注目対局を選んでいます…</div> : <div className={`boards count-${visibleSlots.length}`} data-testid="boards">
             {visibleSlots.map((slot, index) => {

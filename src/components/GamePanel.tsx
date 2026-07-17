@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadGame, pollDelay } from '../data/client';
 import { shareUrl } from '../data/preferences';
 import { boardAt, formatMove } from '../domain/csa';
+import { updateLivePosition } from '../domain/liveFollow';
 import { clampPlaybackSeconds, nextPlaybackPly, playbackDelayMs } from '../domain/playback';
 import { rateLabel } from '../domain/selection';
 import type { ConnectionState, GameSummary, ParsedGame } from '../domain/types';
@@ -62,12 +63,13 @@ export function GamePanel(props: Props) {
         const result = await loadGame(props.summary, controller.signal);
         const failureCount = result.fixture ? failures.current + 1 : 0;
         failures.current = failureCount;
-        setGame((previous) => {
-          if (previous && result.game.moveList.length > previous.moveList.length && lastPly.current < previous.moveList.length) setNewMoves(true);
-          return result.game;
-        });
-        setPly((current) => current === Number.MAX_SAFE_INTEGER || (followingRef.current && current >= gameLengthRef.current) ? result.game.moveList.length : Math.min(current, result.game.moveList.length));
-        gameLengthRef.current = result.game.moveList.length;
+        const nextLength = result.game.moveList.length;
+        const update = updateLivePosition(lastPly.current, gameLengthRef.current, nextLength, followingRef.current);
+        setGame(result.game);
+        setPly(update.ply);
+        setNewMoves((current) => followingRef.current ? false : current || update.hasNewMoves);
+        lastPly.current = update.ply;
+        gameLengthRef.current = nextLength;
         setConnection(result.fixture ? failureCount >= 5 ? 'paused' : 'offline' : result.stale ? 'stale' : 'online');
         setFetchedAt(result.fetchedAt);
         if (props.summary.live) timeout = setTimeout(poll, pollDelay(failureCount, document.hidden));
@@ -91,16 +93,23 @@ export function GamePanel(props: Props) {
     if (safePly >= maxPly) return;
     const timer = setTimeout(() => setPly((value) => {
       const next = nextPlaybackPly(value, maxPly);
-      if (next >= maxPly) setPlaying(false);
+      lastPly.current = next;
+      followingRef.current = next >= maxPly;
+      if (next >= maxPly) {
+        setPlaying(false);
+        setNewMoves(false);
+      }
       return next;
     }), playbackDelayMs(speed));
     return () => clearTimeout(timer);
   }, [playing, game, safePly, maxPly, speed]);
 
   const moveTo = useCallback((next: number) => {
-    setPly(Math.max(0, Math.min(maxPly, next)));
-    followingRef.current = next >= maxPly;
-    if (next >= maxPly) setNewMoves(false);
+    const clamped = Math.max(0, Math.min(maxPly, next));
+    setPly(clamped);
+    lastPly.current = clamped;
+    followingRef.current = clamped >= maxPly;
+    if (clamped >= maxPly) setNewMoves(false);
   }, [maxPly]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -139,11 +148,12 @@ export function GamePanel(props: Props) {
         <span>{safePly}手 / {maxPly}手</span>
         <span>手番 {board?.turn === '+' ? '先手' : '後手'}</span>
         <span>{game?.result ?? (game?.live ? '対局中' : '結果不明')}</span>
-        <span>最終手 {safePly ? formatMove(game!.moveList[safePly - 1]) : '開始局面'}</span>
       </div>
 
+      <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? formatMove(game!.moveList[safePly - 1]) : '開始局面'}</span></div>
+
       {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
-      {board ? <ShogiBoard state={board} flipped={flipped} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
+      {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
 
       <div className="panel-actions">
         <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
@@ -153,7 +163,9 @@ export function GamePanel(props: Props) {
       </div>
       {shareMessage && <output className="sr-message">{shareMessage}</output>}
 
-      <div className="replay" aria-label="棋譜再生操作">
+      <details className="panel-details">
+        <summary>再生・詳細</summary>
+        <div className="replay" aria-label="棋譜再生操作">
         <button aria-label="最初" onClick={() => moveTo(0)}>⏮</button>
         <button aria-label="1手戻る" onClick={() => moveTo(safePly - 1)}>◀</button>
         <button aria-label={playing ? '停止' : '再生'} onClick={() => setPlaying((value) => !value)}>{playing ? '停止' : '再生'}</button>
@@ -169,12 +181,13 @@ export function GamePanel(props: Props) {
           </select>
         </label>
         <label className="custom-speed">秒<input aria-label="任意再生速度（秒）" type="number" min="0.1" max="60" step="0.1" value={speed} onChange={(event) => { const value = clampPlaybackSeconds(Number(event.target.value)); setSpeed(value); props.onSpeedChange(value); }} /></label>
-      </div>
+        </div>
+        {game?.evaluationsTrusted && <details className="evaluations"><summary>CSA評価値</summary><p>評価値の尺度はAI間で同じとは限りません。</p><ul>{game.moveList.filter((move) => move.evaluation !== undefined).map((move) => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
+      </details>
 
       {movesOpen && game && <ol className="move-list" aria-label="棋譜">
         {game.moveList.map((move) => <li key={move.index}><button aria-current={safePly === move.index ? 'step' : undefined} onClick={() => moveTo(move.index)}>{move.index}. {formatMove(move)}{move.time !== undefined ? ` (${move.time}秒)` : ''}</button></li>)}
       </ol>}
-      {game?.evaluationsTrusted && <details className="evaluations"><summary>CSA評価値</summary><p>評価値の尺度はAI間で同じとは限りません。</p><ul>{game.moveList.filter((move) => move.evaluation !== undefined).map((move) => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
       <footer className="connection">
         <span className={`dot ${connection}`} aria-hidden="true" />接続: {connectionLabel(connection)}
         <span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span>

@@ -1,4 +1,4 @@
-import type { BoardState, PieceCode, Side } from '../domain/types';
+import type { BoardState, Move, PieceCode, Side } from '../domain/types';
 
 const GLYPH: Record<PieceCode, string> = {
   FU: '歩', KY: '香', KE: '桂', GI: '銀', KI: '金', KA: '角', HI: '飛', OU: '玉',
@@ -15,7 +15,7 @@ function Hand({ side, state }: { side: Side; state: BoardState }) {
   return <div className="hand" aria-label={`${side === '+' ? '先手' : '後手'}の持駒`}>{items.length ? items.join(' · ') : '持駒なし'}</div>;
 }
 
-export function ShogiBoard({ state, flipped }: { state: BoardState; flipped: boolean }) {
+export function ShogiBoard({ state, flipped, lastMove }: { state: BoardState; flipped: boolean; lastMove?: Move }) {
   const files = flipped ? [1,2,3,4,5,6,7,8,9] : [9,8,7,6,5,4,3,2,1];
   const ranks = flipped ? [9,8,7,6,5,4,3,2,1] : [1,2,3,4,5,6,7,8,9];
   const topSide: Side = flipped ? '+' : '-';
@@ -27,8 +27,10 @@ export function ShogiBoard({ state, flipped }: { state: BoardState; flipped: boo
         {ranks.flatMap((rank) => files.map((file) => {
           const square = `${file}${rank}`;
           const piece = state.squares[square];
+          const isLastFrom = lastMove?.from !== '00' && lastMove?.from === square;
+          const isLastTo = lastMove?.to === square;
           return (
-            <div key={square} role="gridcell" aria-label={`${file}${rank}${piece ? ` ${piece.side === '+' ? '先手' : '後手'}${GLYPH[piece.code]}` : ' 空'}`} className={`square ${state.lastTo === square ? 'last' : ''}`}>
+            <div key={square} role="gridcell" aria-label={`${file}${rank}${piece ? ` ${piece.side === '+' ? '先手' : '後手'}${GLYPH[piece.code]}` : ' 空'}${isLastFrom ? ' 直前手の移動元' : ''}${isLastTo ? ' 直前手の移動先' : ''}`} className={`square${isLastFrom ? ' last-from' : ''}${isLastTo ? ' last-to' : ''}`}>
               {piece && <span className={`piece ${piece.side === topSide ? 'upside' : ''}`}>{GLYPH[piece.code]}</span>}
             </div>
           );
