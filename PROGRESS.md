@@ -12,7 +12,7 @@
 - [x] HTML/CSA/レート解析、実データ由来fixture
 - [x] 固定ホスト・固定パスCloudflare Worker
 - [x] 盤面・ライブ・過去局・保存・共有UI
-- [x] Vitest 27件、Playwright 5件、lint、typecheck、build
+- [x] Vitest 28件、Playwright 5件、lint、typecheck、build
 - [x] README、ARCHITECTURE、DEPLOY
 - [x] GitHub Actions CI、GitHub Pages workflow
 - [x] Worker dry-runバンドル
@@ -21,15 +21,14 @@
 - [x] 2026-07-17実ページのDOM・レート・CSA形式を再監査し、parser/fixtureを追従
 - [x] Workerのedge/browser cache分離、24時間stale保持、CSA短期更新を検証
 - [x] fixture時の指数バックオフ、更新停止表示、要求対局へのfixture適合を検証
-
-## 外部認証待ち
-
-- [ ] Worker本番配備（Cloudflare/Wrangler未認証。コード・dry-run・手順書は完了）
-- [ ] Worker URLをGitHub Actions変数へ設定し、Pagesをライブ接続版として再配備
+- [x] Cloudflare Worker本番配備、preview URL無効化
+- [x] Worker URLをGitHub Actions変数へ設定し、Pagesをライブ接続版として再配備
+- [x] 本番WorkerのCORS、Origin拒否、未許可パス拒否、実データ応答を確認
+- [x] PCの4局表示を盤面左・情報/操作右へ再配置し、1440×900で2×2の4局すべてをスクロールせず表示
+- [x] 初回表示をダークテーマに変更し、保存済みテーマは従来どおり復元
 
 公開先: https://phase-shift-lab.github.io/floodgate-multi-viewer/
-
-現在のPages版は上流接続先が未設定のためfixtureへ安全にフォールバックします。Cloudflare認証後の最終手順は `DEPLOY.md` に記載しています。
+Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 
 ## 検証記録
 
@@ -46,12 +45,23 @@
 | 2026-07-17 | GitHub Actions CI | 成功、commit `4e3d8ed`、Actions run 29570117512（lint / typecheck / unit 27件 / E2E 5件 / build） |
 | 2026-07-17 | GitHub Pages deploy | 成功、commit `4e3d8ed`、Actions run 29570117559 |
 | 2026-07-17 | 公開URL確認 | HTML 200、タイトル一致、サブパスJS 200 |
+| 2026-07-17 | `npm run deploy:worker` | 成功、Worker version `1cd34f63-0a03-4bc9-ada8-104a33fdae67` |
+| 2026-07-17 | Worker本番API確認 | `/api/today` 200、許可Origin CORS一致、未許可Origin 403、未許可パス 404 |
+| 2026-07-17 | GitHub Actions変数 | `VITE_API_BASE` に本番Worker URLを設定 |
+| 2026-07-17 | ライブ接続版Pages deploy | 成功、Actions run 29580554307、build/deployとも成功 |
+| 2026-07-17 | 本番成果物確認 | Pages HTML/JS 200、Worker URL埋込済み、Worker実データ応答 200（164,667 bytes） |
+| 2026-07-17 | 4局表示・初期テーマ調整後 `npm run lint` / `npm run typecheck` | 成功、warning・型エラー0 |
+| 2026-07-17 | 4局表示・初期テーマ調整後 `npm run test` | 成功、8 files / 28 tests |
+| 2026-07-17 | 4局表示・初期テーマ調整後 `npm run test:e2e` | 成功、Chromium 5/5。1440×900でカード下端900px以内、390×844も合格 |
+| 2026-07-17 | 4局表示・初期テーマ調整後 `npm run build` | 成功、28 modules、JS gzip 71.46 kB |
+| 2026-07-17 | 1440×900 Playwright表示確認 | ダーク初期表示、盤面左・情報/操作右の2×2配置、4カードすべての下端が900px以内 |
+| 2026-07-17 | 4局全画面表示の最終検証 | lint・typecheck成功、Vitest 8 files / 28 tests、Playwright 5/5、production build成功 |
 
 ## 簡易品質チェック
 
-- 目的・完了条件への適合: 26/30（Worker本番接続だけ外部認証待ち）
+- 目的・完了条件への適合: 30/30
 - 仕様・設計の一貫性: 20/20
 - 安全性・戻しやすさ: 15/15
 - 検証の妥当性: 20/20
 - 保守性・レート効率: 14/15
-- 合計: 95/100
+- 合計: 99/100

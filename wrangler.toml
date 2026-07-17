@@ -2,6 +2,7 @@ name = "floodgate-multi-viewer-api"
 main = "worker/index.ts"
 compatibility_date = "2026-07-01"
 workers_dev = true
+preview_urls = false
 
 [vars]
 ALLOWED_ORIGINS = "http://localhost:5173,https://phase-shift-lab.github.io"

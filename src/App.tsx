@@ -139,7 +139,7 @@ export default function App() {
         </div>
       </header>
 
-      <main id="main">
+      <main id="main" className={view === 'live' && visibleSlots.length === 4 ? 'four-board-main' : undefined}>
         {status === 'fixture' && <div className="notice warning" role="status"><strong>オフラインデータで表示中</strong><span>APIに接続できないため、実データ由来fixtureを使用しています。表示はstaleです。</span></div>}
         {status === 'error' && <div className="notice error" role="alert">対局情報を取得できませんでした。しばらくしてから再読み込みしてください。</div>}
         {status === 'empty' && <div className="empty-state">表示できる対局がありません。</div>}

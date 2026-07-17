@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { addRecent, loadFavorites, loadRecent, readShareState, saveFavorites, shareUrl } from './preferences';
+import { addRecent, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings, shareUrl } from './preferences';
 
 describe('preferences', () => {
   beforeEach(() => localStorage.clear());
@@ -19,6 +19,13 @@ describe('preferences', () => {
 
     expect(loadFavorites()).toEqual([]);
     expect(loadRecent()).toEqual([]);
+  });
+
+  it('テーマはダークを既定とし、保存済みの選択を優先する', () => {
+    expect(loadSettings().theme).toBe('dark');
+
+    saveSettings({ ...loadSettings(), theme: 'light' });
+    expect(loadSettings().theme).toBe('light');
   });
 
   it('共有URLで対局・手数・表示局数・盤面方向を復元できる', () => {

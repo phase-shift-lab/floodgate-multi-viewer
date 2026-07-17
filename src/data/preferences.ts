@@ -8,7 +8,7 @@ export const DEFAULT_SETTINGS: ViewerSettings = {
   boardCount: typeof matchMedia === 'function' && matchMedia('(max-width: 767px)').matches ? 1 : 4,
   playbackSeconds: 1,
   orientation: 'black',
-  theme: 'system',
+  theme: 'dark',
   autoSwitchFinished: false,
 };
 

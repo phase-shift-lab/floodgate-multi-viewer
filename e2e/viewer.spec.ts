@@ -10,7 +10,16 @@ test.beforeEach(async ({ page }) => {
 test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
-  await expect(page.getByTestId('boards').locator('.game-panel')).toHaveCount(4);
+  const panels = page.getByTestId('boards').locator('.game-panel');
+  await expect(panels).toHaveCount(4);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+  const panelBoxes = await panels.evaluateAll((items) => items.map((item) => {
+    const box = item.getBoundingClientRect();
+    return { top: box.top, bottom: box.bottom };
+  }));
+  expect(panelBoxes).toHaveLength(4);
+  expect(panelBoxes.every(({ top, bottom }) => top >= 0 && bottom <= 900)).toBe(true);
+  expect(panelBoxes[2].top).toBeGreaterThan(panelBoxes[0].top);
 
   await page.getByRole('button', { name: '1局' }).click();
   await expect(page.getByTestId('boards').locator('.game-panel')).toHaveCount(1);

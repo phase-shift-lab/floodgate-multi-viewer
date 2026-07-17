@@ -119,7 +119,64 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .fatal-error { max-width:40rem; margin:10vh auto; text-align:center; display:grid; gap:1rem; }
 .sr-message { display:block; max-width:100%; overflow-wrap:anywhere; text-align:center; color:var(--muted); font-size:.65rem; padding:0 .5rem; }
 
-@media (min-width:1200px) { .boards.count-4 .game-panel { font-size:.94rem; } }
+@media (min-width:768px) and (max-width:1023px) {
+  .boards.count-4 { --four-board-size:clamp(240px,calc(100dvh - 33rem),336px); }
+  .boards.count-4 .shogi-board,.boards.count-4 .hand { width:min(100%,var(--four-board-size)); }
+  .boards.count-4 .board-wrap { padding-block:.3rem; }
+  .boards.count-4 .hand { min-height:1rem; line-height:1rem; margin-block:.15rem; }
+  .boards.count-4 .panel-actions,.boards.count-4 .replay,.boards.count-4 .connection { padding-block:.35rem; }
+}
+@media (min-width:1024px) {
+  .four-board-main { padding-block:.75rem; }
+  .four-board-main .board-section-head { margin-bottom:.5rem; }
+  .boards.count-4 {
+    --four-board-size:clamp(168px,calc(50dvh - 16.875rem),190px);
+    gap:.6rem;
+  }
+  .boards.count-4 .game-panel {
+    display:grid;
+    grid-template-columns:calc(var(--four-board-size) + 1rem) minmax(0,1fr);
+    grid-template-areas:
+      'header header'
+      'players players'
+      'board meta'
+      'board newmoves'
+      'board actions'
+      'board replay'
+      'board connection';
+    grid-template-rows:auto auto auto auto auto auto auto;
+    align-items:stretch;
+  }
+  .boards.count-4 .game-header { grid-area:header; padding:.4rem .55rem; }
+  .boards.count-4 .players { grid-area:players; }
+  .boards.count-4 .players > div { padding:.35rem .5rem; }
+  .boards.count-4 .meta-row { grid-area:meta; padding:.35rem; gap:.25rem .65rem; align-content:center; }
+  .boards.count-4 .new-moves { grid-area:newmoves; padding:.3rem; }
+  .boards.count-4 .board-wrap,
+  .boards.count-4 .loading { grid-area:board; min-width:0; }
+  .boards.count-4 .board-wrap { display:grid; align-content:center; padding:.25rem .5rem; }
+  .boards.count-4 .shogi-board,
+  .boards.count-4 .hand { width:min(100%,var(--four-board-size)); }
+  .boards.count-4 .shogi-board {
+    grid-template-rows:repeat(9,minmax(0,1fr));
+    overflow:hidden;
+  }
+  .boards.count-4 .hand { min-height:.85rem; line-height:.85rem; margin-block:.1rem; font-size:.58rem; }
+  .boards.count-4 .panel-actions { grid-area:actions; padding:.3rem; align-content:center; }
+  .boards.count-4 .panel-actions button { padding:.3rem .45rem; }
+  .boards.count-4 .replay {
+    grid-area:replay;
+    grid-template-columns:repeat(5,minmax(0,auto));
+    justify-content:center;
+    padding:.35rem .45rem;
+  }
+  .boards.count-4 .replay > input { grid-column:1/-1; grid-row:2; }
+  .boards.count-4 .replay label { grid-row:3; }
+  .boards.count-4 .connection { grid-area:connection; justify-content:center; padding:.3rem .45rem; }
+  .boards.count-4 .sr-message,
+  .boards.count-4 .move-list,
+  .boards.count-4 .evaluations { grid-column:1/-1; }
+}
 @media (max-width:1023px) {
   .site-header { grid-template-columns:1fr auto; }
   .site-header nav { order:3; grid-column:1/-1; justify-content:center; }
