@@ -12,7 +12,7 @@
 - [x] HTML/CSA/レート解析、実データ由来fixture
 - [x] 固定ホスト・固定パスCloudflare Worker
 - [x] 盤面・ライブ・過去局・保存・共有UI
-- [x] Vitest 32件、Playwright 6件、lint、typecheck、build
+- [x] Vitest 32件、Playwright 8件、lint、typecheck、build
 - [x] README、ARCHITECTURE、DEPLOY
 - [x] GitHub Actions CI、GitHub Pages workflow
 - [x] Worker dry-runバンドル
@@ -25,7 +25,8 @@
 - [x] Worker URLをGitHub Actions変数へ設定し、Pagesをライブ接続版として再配備
 - [x] 本番WorkerのCORS、Origin拒否、未許可パス拒否、実データ応答を確認
 - [x] 4局表示を盤面上・操作/詳細下へ再配置し、広いPCでは4×1、狭いPCでは2×2、スマートフォンでは1列へ自動変形
-- [x] 1440×900の4×1で盤面220px以上、1024×768の2×2で4局をページスクロールなしに表示
+- [x] 4×1を1920×900で盤面360px以上、1440×900で285px以上、1280×720で260px以上にし、1024×768の2×2を含めページスクロールなしに表示
+- [x] 単局拡大を1440×900で盤面480px以上、1280×720で350px以上にし、折りたたみ状態ではページスクロールなし、詳細展開時はカード内スクロールに制限
 - [x] スマートフォンは既定1局、2/4局選択時は横にはみ出さず縦1列に配置
 - [x] 最新局面の即時追従、過去局面閲覧時の追従停止、直前手の移動元・移動先強調を分離して実装
 - [x] 初回表示をダークテーマに変更し、保存済みテーマは従来どおり復元
@@ -67,6 +68,7 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-18 | GitHub Actions CI / Pages（commit `00ee6d0`） | CI run 29618028996、Pages run 29618028966ともに成功 |
 | 2026-07-18 | 公開版レスポンシブ実測 | 1440×900は4×1・盤面288px、1024×768は2×2で縦横スクロールなし。390×844は既定1局・盤面343px・横はみ出しなし。全表示でダーク既定 |
 | 2026-07-18 | 公開版の最新局面・直前手確認 | 4局の「直前手」表示、移動先4件・移動元3件を確認。移動元なし1件はCSAの駒打ちで仕様どおり |
+| 2026-07-18 | 4局・単局拡大フィット最終検証 | lint・typecheck成功、Vitest 9 files / 32 tests、Playwright Chromium 8/8、build 29 modules・JS gzip 71.71 kB。4局は1920×900で360px以上、1440×900で285px以上、1280×720で260px以上。単局拡大は1440×900で480px以上、1280×720で350px以上。対象PC寸法でページ縦overflowなし |
 
 ## 簡易品質チェック
 

@@ -127,24 +127,57 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .sr-message { display:block; max-width:100%; overflow-wrap:anywhere; text-align:center; color:var(--muted); font-size:.65rem; padding:0 .5rem; }
 
 @media (min-width:768px) {
-  .four-board-view { height:100dvh; min-height:0; overflow:hidden; }
-  .four-board-view .site-header { position:static; min-height:56px; grid-template-columns:minmax(210px,1fr) auto minmax(330px,1fr); gap:.75rem; padding:.45rem 1rem; }
-  .four-board-view .mark { width:2.15rem; height:2.15rem; font-size:1.05rem; }
-  .four-board-view .title-block p { display:none; }
-  .four-board-view .site-header nav button { min-width:5rem; padding:.35rem .5rem; }
-  .four-board-view .header-actions { gap:.35rem; }
-  .four-board-view .auto-switch { font-size:.62rem; }
-  .four-board-view .site-footer { display:none; }
-  .four-board-main { width:100%; min-height:0; padding:.45rem clamp(.6rem,1vw,1rem); overflow:hidden; }
+  :is(.four-board-view,.expanded-view) { height:100dvh; min-height:0; overflow:hidden; }
+  :is(.four-board-view,.expanded-view) .site-header { position:static; min-height:56px; grid-template-columns:minmax(210px,1fr) auto minmax(330px,1fr); gap:.75rem; padding:.45rem 1rem; }
+  :is(.four-board-view,.expanded-view) .mark { width:2.15rem; height:2.15rem; font-size:1.05rem; }
+  :is(.four-board-view,.expanded-view) .title-block p { display:none; }
+  :is(.four-board-view,.expanded-view) .site-header nav button { min-width:5rem; padding:.35rem .5rem; }
+  :is(.four-board-view,.expanded-view) .header-actions { gap:.35rem; }
+  :is(.four-board-view,.expanded-view) .auto-switch { font-size:.62rem; }
+  :is(.four-board-view,.expanded-view) .site-footer { display:none; }
+  :is(.four-board-main,.expanded-main) { width:100%; min-height:0; padding:.45rem clamp(.6rem,1vw,1rem); overflow:hidden; }
   .four-board-main .live-section { height:100%; display:flex; flex-direction:column; min-height:0; }
-  .four-board-main .notice { margin-bottom:.35rem; padding:.35rem .55rem; font-size:.68rem; }
-  .four-board-main .notice span { display:none; }
+  :is(.four-board-main,.expanded-main) .notice { margin-bottom:.35rem; padding:.35rem .55rem; font-size:.68rem; }
+  :is(.four-board-main,.expanded-main) .notice span { display:none; }
   .four-board-main .board-section-head { margin-bottom:.35rem; align-items:center; }
   .four-board-main .eyebrow { display:none; }
   .four-board-main h2 { font-size:1rem; }
   .four-board-main .legend { gap:.6rem; font-size:.62rem; }
+  .expanded-main .live-section { display:flex; height:100%; min-height:0; flex-direction:column; }
+  .expanded-main > .notice.warning {
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+  .expanded-main .board-section-head { display:none; }
+  .expanded-main .boards.count-1 { width:min(980px,100%); height:100%; min-height:0; align-items:start; }
+  .expanded-main .game-panel.expanded {
+    --expanded-board-size:clamp(260px,min(48vw,calc(100dvh - 23rem)),520px);
+    width:min(980px,100%);
+    max-height:100%;
+    margin:auto;
+    overflow:hidden;
+  }
+  .expanded-main .game-panel.expanded .shogi-board { width:var(--expanded-board-size); }
+  .expanded-main .game-panel.expanded .game-header,
+  .expanded-main .game-panel.expanded .meta-row,
+  .expanded-main .game-panel.expanded .last-move-text,
+  .expanded-main .game-panel.expanded .panel-actions,
+  .expanded-main .game-panel.expanded .connection { padding-block:.3rem; }
+  .expanded-main .game-panel.expanded .players > div { padding-block:.3rem; }
+  .expanded-main .game-panel.expanded .board-wrap { padding-block:.35rem; }
+  .expanded-main .game-panel.expanded .panel-details[open] { max-height:min(14rem,30dvh); overflow:auto; }
+  .expanded-main .game-panel.expanded:has(.panel-details[open]) {
+    --expanded-board-size:clamp(220px,min(40vw,calc(100dvh - 32rem)),360px);
+  }
   .boards.count-4 {
-    --four-board-size:clamp(100px,calc((100dvh - 550px)/2),165px);
+    --four-board-size:clamp(100px,calc((100dvh - 540px)/2),190px);
     grid-template-columns:repeat(2,minmax(0,1fr));
     column-gap:.45rem;
     row-gap:.2rem;
@@ -171,7 +204,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 }
 @media (min-width:1200px) {
   .boards.count-4 {
-    --four-board-size:clamp(205px,min(20vw,calc(100dvh - 23rem)),300px);
+    --four-board-size:clamp(205px,min(21.5vw,calc(100dvh - 19rem)),390px);
     grid-template-columns:repeat(4,minmax(0,1fr));
   }
 }
