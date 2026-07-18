@@ -123,10 +123,30 @@ export default function App() {
 
   const visibleSlots = expanded !== undefined ? slots.slice(expanded, expanded + 1) : slots.slice(0, settings.boardCount);
   const isExpandedLive = view === 'live' && expanded !== undefined;
+  const isSingleBoardLive = view === 'live' && !isExpandedLive && visibleSlots.length === 1;
+  const isTwoBoardLive = view === 'live' && !isExpandedLive && visibleSlots.length === 2;
   const isFourBoardLive = view === 'live' && !isExpandedLive && visibleSlots.length === 4;
+  const liveViewClass = isExpandedLive
+    ? ' expanded-view'
+    : isSingleBoardLive
+      ? ' single-board-view'
+      : isTwoBoardLive
+        ? ' two-board-view'
+        : isFourBoardLive
+          ? ' four-board-view'
+          : '';
+  const liveMainClass = isExpandedLive
+    ? 'expanded-main'
+    : isSingleBoardLive
+      ? 'single-board-main'
+      : isTwoBoardLive
+        ? 'two-board-main'
+        : isFourBoardLive
+          ? 'four-board-main'
+          : undefined;
 
   return (
-    <div className={`app-shell${isFourBoardLive ? ' four-board-view' : ''}${isExpandedLive ? ' expanded-view' : ''}`}>
+    <div className={`app-shell${liveViewClass}`}>
       <a className="skip-link" href="#main">本文へ移動</a>
       <header className="site-header">
         <div className="title-block"><span className="mark" aria-hidden="true">多</span><div><h1>Floodgate Multi Viewer</h1><p>公開棋譜を静かに、見やすく。</p></div></div>
@@ -137,11 +157,12 @@ export default function App() {
         <div className="header-actions">
           <fieldset className="count-switch"><legend>表示局数</legend>{([1,2,4] as const).map((count) => <button key={count} aria-pressed={settings.boardCount === count} onClick={() => setBoardCount(count)}>{count}局</button>)}</fieldset>
           <label className="theme-select">配色<select aria-label="配色" value={settings.theme} onChange={(event) => setSettings((value) => ({ ...value, theme: event.target.value as ViewerSettings['theme'] }))}><option value="system">端末設定</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
+          <a className="header-source-link" aria-label="Floodgate 公開情報" href="https://wdoor.c.u-tokyo.ac.jp/shogi/" target="_blank" rel="noreferrer">出典</a>
           <label className="auto-switch"><input type="checkbox" checked={settings.autoSwitchFinished} onChange={(event) => setSettings((value) => ({ ...value, autoSwitchFinished: event.target.checked }))} />終局後に注目局へ切替</label>
         </div>
       </header>
 
-      <main id="main" className={isExpandedLive ? 'expanded-main' : isFourBoardLive ? 'four-board-main' : undefined}>
+      <main id="main" className={liveMainClass}>
         {status === 'fixture' && <div className="notice warning" role="status"><strong>オフラインデータで表示中</strong><span>APIに接続できないため、実データ由来fixtureを使用しています。表示はstaleです。</span></div>}
         {status === 'error' && <div className="notice error" role="alert">対局情報を取得できませんでした。しばらくしてから再読み込みしてください。</div>}
         {status === 'empty' && <div className="empty-state">表示できる対局がありません。</div>}

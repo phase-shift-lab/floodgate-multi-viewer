@@ -64,10 +64,60 @@ test('PCの横長・低め画面でも4局を一列で画面内に収める', as
   }
 });
 
+test('PCの1・2局表示は低い画面でも主要情報を自動フィットする', async ({ page }) => {
+  for (const viewport of [
+    { width: 1440, height: 900, singleMinimum: 470, dualMinimum: 400 },
+    { width: 1280, height: 720, singleMinimum: 320, dualMinimum: 300 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.reload();
+
+    for (const mode of [
+      { name: '1局', count: 1, minimumBoard: viewport.singleMinimum },
+      { name: '2局', count: 2, minimumBoard: viewport.dualMinimum },
+    ] as const) {
+      await page.getByRole('button', { name: mode.name }).click();
+      const panels = page.getByTestId('boards').locator('.game-panel');
+      await expect(panels).toHaveCount(mode.count);
+
+      for (let index = 0; index < mode.count; index += 1) {
+        const panel = panels.nth(index);
+        const board = panel.locator('.shogi-board');
+        const connection = panel.locator('.connection');
+        await expect(board).toBeVisible();
+        await expect(panel.locator('.panel-actions')).toBeVisible();
+        await expect(connection).toBeVisible();
+
+        const panelBox = await panel.boundingBox();
+        const boardBox = await board.boundingBox();
+        const connectionBox = await connection.boundingBox();
+        expect(panelBox).not.toBeNull();
+        expect(boardBox).not.toBeNull();
+        expect(connectionBox).not.toBeNull();
+        expect((panelBox?.y ?? 0) + (panelBox?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
+        expect((connectionBox?.y ?? 0) + (connectionBox?.height ?? 0)).toBeLessThanOrEqual(
+          viewport.height + 1,
+        );
+        expect(boardBox?.width ?? 0).toBeGreaterThanOrEqual(mode.minimumBoard);
+      }
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollHeight - document.documentElement.clientHeight,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    }
+  }
+
+  const rootFontSize = await page.evaluate(() =>
+    Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+  );
+  expect(rootFontSize).toBeGreaterThanOrEqual(16.5);
+});
+
 test('単局拡大は盤面と主要操作をスクロールなしで表示する', async ({ page }) => {
   for (const viewport of [
     { width: 1440, height: 900, minimumBoard: 480 },
-    { width: 1280, height: 720, minimumBoard: 350 },
+    { width: 1280, height: 720, minimumBoard: 330 },
   ]) {
     await page.setViewportSize(viewport);
     await page.reload();

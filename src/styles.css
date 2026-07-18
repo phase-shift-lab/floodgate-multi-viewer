@@ -1,5 +1,6 @@
 :root {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Yu Gothic UI', 'Meiryo', sans-serif;
+  font-size: 16.5px;
   color: #24231f;
   background: #f2f0ea;
   font-synthesis: none;
@@ -41,6 +42,7 @@ h1 { font:700 clamp(1.05rem,2vw,1.35rem)/1.2 'Yu Mincho','Hiragino Mincho ProN',
 .site-header nav button { border:0; background:transparent; color:var(--muted); min-width:6rem; }
 .site-header nav button.active { background:var(--paper); color:var(--ink); box-shadow:0 2px 7px rgb(0 0 0 / 7%); }
 .header-actions { display:flex; justify-content:flex-end; gap:.75rem; align-items:center; }
+.header-source-link { display:none; }
 .count-switch { border:0; padding:0; display:flex; gap:.18rem; }
 .count-switch legend { position:absolute; width:1px; height:1px; clip:rect(0 0 0 0); overflow:hidden; }
 .count-switch button { padding:.35rem .55rem; font-size:.82rem; background:transparent; }
@@ -127,18 +129,40 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .sr-message { display:block; max-width:100%; overflow-wrap:anywhere; text-align:center; color:var(--muted); font-size:.65rem; padding:0 .5rem; }
 
 @media (min-width:768px) {
-  :is(.four-board-view,.expanded-view) { height:100dvh; min-height:0; overflow:hidden; }
-  :is(.four-board-view,.expanded-view) .site-header { position:static; min-height:56px; grid-template-columns:minmax(210px,1fr) auto minmax(330px,1fr); gap:.75rem; padding:.45rem 1rem; }
-  :is(.four-board-view,.expanded-view) .mark { width:2.15rem; height:2.15rem; font-size:1.05rem; }
-  :is(.four-board-view,.expanded-view) .title-block p { display:none; }
-  :is(.four-board-view,.expanded-view) .site-header nav button { min-width:5rem; padding:.35rem .5rem; }
-  :is(.four-board-view,.expanded-view) .header-actions { gap:.35rem; }
-  :is(.four-board-view,.expanded-view) .auto-switch { font-size:.62rem; }
-  :is(.four-board-view,.expanded-view) .site-footer { display:none; }
-  :is(.four-board-main,.expanded-main) { width:100%; min-height:0; padding:.45rem clamp(.6rem,1vw,1rem); overflow:hidden; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) { height:100dvh; min-height:0; overflow:hidden; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .site-header { position:static; min-height:56px; grid-template-columns:minmax(210px,1fr) auto minmax(330px,1fr); gap:.75rem; padding:.45rem 1rem; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .mark { width:2.15rem; height:2.15rem; font-size:1.05rem; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .title-block p { display:none; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .site-header nav button { min-width:5rem; padding:.35rem .5rem; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .header-actions { gap:.35rem; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .header-source-link { display:inline-flex; align-items:center; min-height:30px; padding:0 .55rem; border:1px solid var(--line); border-radius:9px; color:var(--muted); font-size:.76rem; text-decoration:none; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .auto-switch { font-size:.62rem; }
+  :is(.single-board-view,.two-board-view,.four-board-view,.expanded-view) .site-footer { display:none; }
+  :is(.single-board-main,.two-board-main,.four-board-main,.expanded-main) { width:100%; min-height:0; padding:.45rem clamp(.6rem,1vw,1rem); overflow:hidden; }
+  :is(.single-board-main,.two-board-main) .live-section { display:flex; height:100%; min-height:0; flex-direction:column; }
+  :is(.single-board-main,.two-board-main) .board-section-head { display:none; }
+  :is(.single-board-main,.two-board-main) .eyebrow { display:none; }
+  :is(.single-board-main,.two-board-main) h2 { font-size:1rem; }
+  :is(.single-board-main,.two-board-main) .legend { gap:.6rem; font-size:.62rem; }
+  :is(.single-board-main,.two-board-main) .boards { flex:1; min-height:0; align-content:start; }
+  .single-board-main .boards.count-1 { width:min(980px,100%); }
+  :is(.single-board-main,.two-board-main) .game-panel { max-height:none; overflow:visible; }
+  .single-board-main .game-panel { --live-board-size:clamp(220px,min(44vw,calc(100dvh - 24rem)),470px); }
+  .two-board-main .game-panel { --live-board-size:clamp(210px,min(34vw,calc(100dvh - 24rem)),430px); }
+  :is(.single-board-main,.two-board-main) .shogi-board,
+  :is(.single-board-main,.two-board-main) .hand { width:min(100%,var(--live-board-size)); }
+  :is(.single-board-main,.two-board-main) .game-header,
+  :is(.single-board-main,.two-board-main) .meta-row,
+  :is(.single-board-main,.two-board-main) .last-move-text,
+  :is(.single-board-main,.two-board-main) .panel-actions,
+  :is(.single-board-main,.two-board-main) .connection { padding-block:.2rem; }
+  :is(.single-board-main,.two-board-main) .players > div { padding-block:.22rem; }
+  :is(.single-board-main,.two-board-main) .board-wrap { padding-block:.25rem; }
+  :is(.single-board-main,.two-board-main) .panel-details[open] { max-height:min(14rem,30dvh); overflow:auto; }
+  :is(.single-board-main,.two-board-main) .game-panel:has(.panel-details[open]) { --live-board-size:clamp(190px,min(28vw,calc(100dvh - 30rem)),330px); }
   .four-board-main .live-section { height:100%; display:flex; flex-direction:column; min-height:0; }
-  :is(.four-board-main,.expanded-main) .notice { margin-bottom:.35rem; padding:.35rem .55rem; font-size:.68rem; }
-  :is(.four-board-main,.expanded-main) .notice span { display:none; }
+  :is(.single-board-main,.two-board-main,.four-board-main,.expanded-main) .notice { margin-bottom:.25rem; padding:.3rem .5rem; font-size:.68rem; }
+  :is(.single-board-main,.two-board-main,.four-board-main,.expanded-main) .notice span { display:none; }
   .four-board-main .board-section-head { margin-bottom:.35rem; align-items:center; }
   .four-board-main .eyebrow { display:none; }
   .four-board-main h2 { font-size:1rem; }
@@ -177,7 +201,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
     --expanded-board-size:clamp(220px,min(40vw,calc(100dvh - 32rem)),360px);
   }
   .boards.count-4 {
-    --four-board-size:clamp(100px,calc((100dvh - 540px)/2),190px);
+  --four-board-size:clamp(96px,calc((100dvh - 560px)/2),190px);
     grid-template-columns:repeat(2,minmax(0,1fr));
     column-gap:.45rem;
     row-gap:.2rem;
