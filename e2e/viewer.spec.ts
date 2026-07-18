@@ -36,8 +36,8 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   expect(await handPieces.count()).toBeGreaterThan(0);
   await expect(handPieces.first()).toBeVisible();
   const handPieceBox = await handPieces.first().boundingBox();
-  expect(handPieceBox?.width ?? 0).toBeGreaterThan(8);
-  expect(handPieceBox?.height ?? 0).toBeGreaterThan(8);
+  expect(handPieceBox?.width ?? 0).toBeGreaterThanOrEqual(15);
+  expect(handPieceBox?.height ?? 0).toBeGreaterThanOrEqual(17);
   expect((await page.locator('.hand').allTextContents()).join('')).not.toContain('·');
 
   await page.getByRole('button', { name: '1局' }).click();
@@ -152,6 +152,11 @@ test('1024x768では4局を2x2でスクロールせず表示する', async ({ pa
   await page.reload();
   const panels = page.getByTestId('boards').locator('.game-panel');
   await expect(panels).toHaveCount(4);
+  const compactHandPiece = page.locator('.boards.count-4 .hand-piece').first();
+  await expect(compactHandPiece).toBeVisible();
+  const compactHandBox = await compactHandPiece.boundingBox();
+  expect(compactHandBox?.width ?? 0).toBeGreaterThanOrEqual(11);
+  expect(compactHandBox?.height ?? 0).toBeGreaterThanOrEqual(12);
   const panelBoxes = await panels.evaluateAll((items) => items.map((item) => {
     const box = item.getBoundingClientRect();
     return { top: box.top, bottom: box.bottom };

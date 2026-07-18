@@ -226,10 +226,10 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .board-wrap { padding:.15rem .3rem; }
   .boards.count-4 .shogi-board,.boards.count-4 .hand { width:min(100%,var(--four-board-size)); }
   .boards.count-4 .shogi-board { grid-template-rows:repeat(9,minmax(0,1fr)); overflow:hidden; }
-  .boards.count-4 .hand { min-height:.72rem; line-height:.72rem; margin-block:.08rem; font-size:.53rem; }
-  .boards.count-4 .hand-pieces { gap:.16rem; }
-  .boards.count-4 .hand-piece { width:.63rem; height:.7rem; font-size:.46rem; filter:none; }
-  .boards.count-4 .hand-count { right:-.16rem; bottom:-.06rem; min-width:.5rem; padding:.01rem .06rem; font-size:.34rem; }
+  .boards.count-4 .hand { min-height:.9rem; line-height:.9rem; margin-block:.08rem; font-size:.58rem; }
+  .boards.count-4 .hand-pieces { gap:.2rem; }
+  .boards.count-4 .hand-piece { width:.82rem; height:.92rem; font-size:.58rem; filter:none; }
+  .boards.count-4 .hand-count { right:-.18rem; bottom:-.07rem; min-width:.58rem; padding:.01rem .06rem; font-size:.4rem; }
   .boards.count-4 .panel-actions { padding:.22rem; }
   .boards.count-4 .panel-actions button { padding:.22rem .35rem; font-size:.6rem; }
   .boards.count-4 .panel-details > summary { padding:.25rem; font-size:.6rem; }
@@ -240,9 +240,35 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
     --four-board-size:clamp(205px,min(21.5vw,calc(100dvh - 19rem)),390px);
     grid-template-columns:repeat(4,minmax(0,1fr));
   }
+
+  .boards.count-4 .hand { min-height:1.08rem; line-height:1.08rem; }
+  .boards.count-4 .hand-pieces { gap:.24rem; }
+  .boards.count-4 .hand-piece { width:1rem; height:1.12rem; font-size:.68rem; }
+  .boards.count-4 .hand-count { right:-.2rem; bottom:-.08rem; min-width:.66rem; font-size:.44rem; }
 }
 @media (min-width:768px) and (max-width:1199px) {
   .four-board-main .board-section-head { display:none; }
+
+  .boards.count-4 .hand {
+    min-height:.78rem;
+    line-height:.78rem;
+    font-size:.54rem;
+  }
+
+  .boards.count-4 .hand-pieces { gap:.16rem; }
+
+  .boards.count-4 .hand-piece {
+    width:.72rem;
+    height:.8rem;
+    font-size:.52rem;
+  }
+
+  .boards.count-4 .hand-count {
+    right:-.14rem;
+    bottom:-.05rem;
+    min-width:.52rem;
+    font-size:.36rem;
+  }
 }
 @media (max-width:1023px) {
   .site-header { grid-template-columns:1fr auto; }
