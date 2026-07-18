@@ -1,4 +1,32 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+async function expectHeldPieceMatchesBoardPiece(panel: Locator) {
+  const measurement = await panel.evaluate((root) => {
+    const heldPiece = root.querySelector<HTMLElement>('.hand-piece');
+    const boardPiece = root.querySelector<HTMLElement>('.piece');
+    if (!heldPiece || !boardPiece) return null;
+
+    const heldBox = heldPiece.getBoundingClientRect();
+    const boardBox = boardPiece.getBoundingClientRect();
+    return {
+      heldWidth: heldBox.width,
+      heldHeight: heldBox.height,
+      boardWidth: boardBox.width,
+      boardHeight: boardBox.height,
+    };
+  });
+
+  expect(measurement).not.toBeNull();
+  if (!measurement) throw new Error('持ち駒と盤上の駒を測定できません');
+  expect(
+    Math.abs(measurement.heldWidth - measurement.boardWidth),
+    `持ち駒と盤上駒の幅: ${JSON.stringify(measurement)}`,
+  ).toBeLessThanOrEqual(1);
+  expect(
+    Math.abs(measurement.heldHeight - measurement.boardHeight),
+    `持ち駒と盤上駒の高さ: ${JSON.stringify(measurement)}`,
+  ).toBeLessThanOrEqual(1);
+}
 
 const basePath = '/floodgate-multi-viewer/';
 
@@ -32,6 +60,37 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   expect(boardBoxes.every(({ width, height }) => Math.abs(width - height) <= 1)).toBe(true);
   await expect(page.locator('.last-to')).toHaveCount(4);
   await expect(page.locator('.last-move-text').first()).toContainText('直前手');
+  const markerPanel = panels.first();
+  const lastOrigins = markerPanel.locator('.last-from');
+  await markerPanel.getByText('再生・詳細', { exact: true }).click();
+  const previousMoveButton = markerPanel.getByRole('button', { name: '1手戻る' });
+  for (let attempt = 0; attempt < 12 && (await lastOrigins.count()) === 0; attempt += 1) {
+    await previousMoveButton.click();
+  }
+  expect(await lastOrigins.count()).toBeGreaterThan(0);
+  await expect(lastOrigins.first()).toHaveAttribute('aria-label', /直前手の移動元/);
+  const lastDestination = markerPanel.locator('.last-to').first();
+  await expect(lastDestination).toHaveAttribute('aria-label', /直前手の移動先/);
+  const originMarker = await lastOrigins.first().evaluate((element) => {
+    const style = getComputedStyle(element, '::before');
+    return {
+      borderStyle: style.borderTopStyle,
+      borderWidth: Number.parseFloat(style.borderTopWidth),
+      backgroundImage: style.backgroundImage,
+    };
+  });
+  expect(originMarker.borderStyle).toBe('dashed');
+  expect(originMarker.borderWidth).toBeGreaterThanOrEqual(3);
+  expect(originMarker.backgroundImage).toContain('radial-gradient');
+  const destinationMarker = await lastDestination.evaluate((element) => {
+    const style = getComputedStyle(element, '::after');
+    return {
+      borderStyle: style.borderTopStyle,
+      borderWidth: Number.parseFloat(style.borderTopWidth),
+    };
+  });
+  expect(destinationMarker.borderStyle).toBe('solid');
+  expect(destinationMarker.borderWidth).toBeGreaterThanOrEqual(4);
   const handPieces = page.locator('.hand-piece');
   expect(await handPieces.count()).toBeGreaterThan(0);
   await expect(handPieces.first()).toBeVisible();
@@ -39,6 +98,9 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   expect(handPieceBox?.width ?? 0).toBeGreaterThanOrEqual(15);
   expect(handPieceBox?.height ?? 0).toBeGreaterThanOrEqual(17);
   expect((await page.locator('.hand').allTextContents()).join('')).not.toContain('·');
+  const panelWithHeldPiece = page.locator('.game-panel:has(.hand-piece)').first();
+  await expect(panelWithHeldPiece).toBeVisible();
+  await expectHeldPieceMatchesBoardPiece(panelWithHeldPiece);
 
   await page.getByRole('button', { name: '1局' }).click();
   await expect(page.getByTestId('boards').locator('.game-panel')).toHaveCount(1);
@@ -152,11 +214,9 @@ test('1024x768では4局を2x2でスクロールせず表示する', async ({ pa
   await page.reload();
   const panels = page.getByTestId('boards').locator('.game-panel');
   await expect(panels).toHaveCount(4);
-  const compactHandPiece = page.locator('.boards.count-4 .hand-piece').first();
-  await expect(compactHandPiece).toBeVisible();
-  const compactHandBox = await compactHandPiece.boundingBox();
-  expect(compactHandBox?.width ?? 0).toBeGreaterThanOrEqual(11);
-  expect(compactHandBox?.height ?? 0).toBeGreaterThanOrEqual(12);
+  const compactPanelWithHeldPiece = page.locator('.boards.count-4 .game-panel:has(.hand-piece)').first();
+  await expect(compactPanelWithHeldPiece).toBeVisible();
+  await expectHeldPieceMatchesBoardPiece(compactPanelWithHeldPiece);
   const panelBoxes = await panels.evaluateAll((items) => items.map((item) => {
     const box = item.getBoundingClientRect();
     return { top: box.top, bottom: box.bottom };

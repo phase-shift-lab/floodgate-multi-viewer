@@ -1,6 +1,6 @@
 # 実施状況
 
-更新日: 2026-07-18
+更新日: 2026-07-19
 
 ## 完了
 
@@ -29,11 +29,12 @@
 - [x] 単局拡大を1440×900で盤面480px以上、1280×720で350px以上にし、折りたたみ状態ではページスクロールなし、詳細展開時はカード内スクロールに制限
 - [x] スマートフォンは既定1局、2/4局選択時は横にはみ出さず縦1列に配置
 - [x] 最新局面の即時追従、過去局面閲覧時の追従停止、直前手の移動元・移動先強調を分離して実装
+- [x] 直前手の移動先を赤い太実線、移動元（駒跡）を青い破線と中心点で色・形とも明確化
 - [x] 初回表示をダークテーマに変更し、保存済みテーマは従来どおり復元
 - [x] PCの1・2局表示を画面高へ自動フィットし、1440×900・1280×720で盤面・主要操作・接続状態をページ縦スクロールなしで表示
 - [x] ルート文字サイズを16.5pxへ拡大し、全体の可読性をわずかに向上
 - [x] 持ち駒を盤上と同系統の駒形UIへ変更し、枚数表示、先後の向き、盤面反転、アクセシブルな読み上げを実装
-- [x] 4局表示の持ち駒を拡大し、1200px以上では視認性を優先、768〜1199pxでは4局フィットを維持する段階サイズに調整
+- [x] 持ち駒と盤上の駒で同じ寸法変数を共有し、1・2・4局表示と単局拡大で常に同サイズへ調整
 
 公開先: https://phase-shift-lab.github.io/floodgate-multi-viewer/
 Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
@@ -76,6 +77,7 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-18 | 1・2局自動フィット先行検証 | Playwright Chromium 1/1。1440×900は単局470px以上・2局400px以上、1280×720は単局320px以上・2局300px以上。全条件で盤面・主要操作・接続状態が表示領域内、ページ縦overflowなし、ルート文字サイズ16.5px以上を確認 |
 | 2026-07-18 | 持ち駒UIの最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・JS gzip 71.88 kB。1440×900の4局、390×844の1局、1・2・4局切替、盤面反転と保存復元で駒形・枚数・向きを確認 |
 | 2026-07-18 | 4局表示の持ち駒拡大 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、1024×768対象E2E 1/1、production build 29 modules・JS gzip 71.88 kB。1440px幅で持ち駒15×17px以上、1024px幅で11×12px以上を確認 |
+| 2026-07-19 | 持ち駒同寸化・直前手強調の最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・JS gzip 71.90 kB。持ち駒は盤上駒と同寸、移動先は赤い太実線、移動元は青い破線と中心点を確認 |
 
 ## 簡易品質チェック
 

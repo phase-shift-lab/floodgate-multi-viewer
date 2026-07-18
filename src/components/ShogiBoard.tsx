@@ -38,21 +38,23 @@ export function ShogiBoard({ state, flipped, lastMove }: { state: BoardState; fl
   const bottomSide: Side = flipped ? '-' : '+';
   return (
     <div className="board-wrap">
-      <Hand side={topSide} state={state} upside />
-      <div className="shogi-board" role="grid" aria-label={`将棋盤 ${state.ply}手目`}>
-        {ranks.flatMap((rank) => files.map((file) => {
-          const square = `${file}${rank}`;
-          const piece = state.squares[square];
-          const isLastFrom = lastMove?.from !== '00' && lastMove?.from === square;
-          const isLastTo = lastMove?.to === square;
-          return (
-            <div key={square} role="gridcell" aria-label={`${file}${rank}${piece ? ` ${piece.side === '+' ? '先手' : '後手'}${GLYPH[piece.code]}` : ' 空'}${isLastFrom ? ' 直前手の移動元' : ''}${isLastTo ? ' 直前手の移動先' : ''}`} className={`square${isLastFrom ? ' last-from' : ''}${isLastTo ? ' last-to' : ''}`}>
-              {piece && <span className={`piece ${piece.side === topSide ? 'upside' : ''}`}>{GLYPH[piece.code]}</span>}
-            </div>
-          );
-        }))}
+      <div className="board-stack">
+        <Hand side={topSide} state={state} upside />
+        <div className="shogi-board" role="grid" aria-label={`将棋盤 ${state.ply}手目`}>
+          {ranks.flatMap((rank) => files.map((file) => {
+            const square = `${file}${rank}`;
+            const piece = state.squares[square];
+            const isLastFrom = lastMove?.from !== '00' && lastMove?.from === square;
+            const isLastTo = lastMove?.to === square;
+            return (
+              <div key={square} role="gridcell" aria-label={`${file}${rank}${piece ? ` ${piece.side === '+' ? '先手' : '後手'}${GLYPH[piece.code]}` : ' 空'}${isLastFrom ? ' 直前手の移動元' : ''}${isLastTo ? ' 直前手の移動先' : ''}`} className={`square${isLastFrom ? ' last-from' : ''}${isLastTo ? ' last-to' : ''}`}>
+                {piece && <span className={`piece ${piece.side === topSide ? 'upside' : ''}`}>{GLYPH[piece.code]}</span>}
+              </div>
+            );
+          }))}
+        </div>
+        <Hand side={bottomSide} state={state} />
       </div>
-      <Hand side={bottomSide} state={state} />
     </div>
   );
 }
