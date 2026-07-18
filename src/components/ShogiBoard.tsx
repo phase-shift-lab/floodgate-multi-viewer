@@ -7,12 +7,28 @@ const GLYPH: Record<PieceCode, string> = {
 
 const HAND_ORDER: PieceCode[] = ['HI', 'KA', 'KI', 'GI', 'KE', 'KY', 'FU'];
 
-function Hand({ side, state }: { side: Side; state: BoardState }) {
+function Hand({ side, state, upside = false }: { side: Side; state: BoardState; upside?: boolean }) {
+  const sideLabel = side === '+' ? '先手' : '後手';
   const items = HAND_ORDER.flatMap((code) => {
     const count = state.hands[side][code] ?? 0;
-    return count ? [`${GLYPH[code]}${count > 1 ? count : ''}`] : [];
+    return count ? [{ code, count }] : [];
   });
-  return <div className="hand" aria-label={`${side === '+' ? '先手' : '後手'}の持駒`}>{items.length ? items.join(' · ') : '持駒なし'}</div>;
+  return (
+    <div className="hand" role="group" aria-label={`${sideLabel}の持駒`}>
+      {items.length ? (
+        <ul className="hand-pieces">
+          {items.map(({ code, count }) => (
+            <li key={code} className="hand-piece-item" aria-label={`${sideLabel}の${GLYPH[code]} ${count}枚`}>
+              <span className={`hand-piece${upside ? ' upside' : ''}`} aria-hidden="true">{GLYPH[code]}</span>
+              {count > 1 && <span className="hand-count" aria-hidden="true">×{count}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span className="hand-empty">持駒なし</span>
+      )}
+    </div>
+  );
 }
 
 export function ShogiBoard({ state, flipped, lastMove }: { state: BoardState; flipped: boolean; lastMove?: Move }) {
@@ -22,7 +38,7 @@ export function ShogiBoard({ state, flipped, lastMove }: { state: BoardState; fl
   const bottomSide: Side = flipped ? '-' : '+';
   return (
     <div className="board-wrap">
-      <Hand side={topSide} state={state} />
+      <Hand side={topSide} state={state} upside />
       <div className="shogi-board" role="grid" aria-label={`将棋盤 ${state.ply}手目`}>
         {ranks.flatMap((rank) => files.map((file) => {
           const square = `${file}${rank}`;

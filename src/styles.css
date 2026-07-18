@@ -91,8 +91,14 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .square.last-to::after { content:''; position:absolute; inset:8%; border:3px solid var(--accent); border-radius:50%; background:color-mix(in srgb,var(--accent),transparent 76%); box-shadow:0 0 0 2px rgb(255 255 255 / 28%); }
 .piece { z-index:1; display:grid; place-items:center; width:78%; height:86%; color:#21170b; background:linear-gradient(#ffe4a9,#e8b96c); clip-path:polygon(50% 0,100% 18%,92% 100%,8% 100%,0 18%); font-family:'Yu Mincho','Hiragino Mincho ProN',serif; font-weight:700; font-size:clamp(.64rem,1.65vw,1.2rem); text-shadow:0 1px rgb(255 255 255 / 45%); }
 .piece.upside { transform:rotate(180deg); }
-.hand { width:min(100%,460px); min-height:1.35rem; margin:.25rem auto; color:var(--muted); font-size:.65rem; text-align:left; }
-.hand:first-child { text-align:right; }
+.hand { display:flex; align-items:center; width:min(100%,460px); min-height:1.35rem; margin:.25rem auto; color:var(--muted); font-size:.65rem; }
+.hand:first-child { justify-content:flex-end; }
+.hand-pieces { display:flex; align-items:center; gap:.28rem; min-width:0; margin:0; padding:0; list-style:none; }
+.hand-piece-item { position:relative; display:inline-flex; flex:0 0 auto; align-items:center; justify-content:center; }
+.hand-piece { display:grid; place-items:center; width:1.2rem; height:1.34rem; color:#21170b; background:linear-gradient(#ffe4a9,#e8b96c); clip-path:polygon(50% 0,100% 18%,92% 100%,8% 100%,0 18%); font-family:'Yu Mincho','Hiragino Mincho ProN',serif; font-size:.76rem; font-weight:700; line-height:1; filter:drop-shadow(0 1px 1px #0005); }
+.hand-piece.upside { transform:rotate(180deg); }
+.hand-count { position:absolute; right:-.24rem; bottom:-.1rem; z-index:1; min-width:.75rem; padding:.03rem .12rem; border:1px solid color-mix(in srgb,var(--border) 80%,#fff 20%); border-radius:999px; color:var(--text); background:var(--panel); font-size:.48rem; font-weight:700; line-height:1; text-align:center; }
+.hand-empty { opacity:.75; }
 .loading,.board-skeleton,.empty-state { min-height:16rem; display:grid; place-items:center; color:var(--muted); background:var(--paper); border:1px dashed var(--line); border-radius:.7rem; }
 .panel-actions { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:center; padding:.5rem; border-top:1px solid var(--line); }
 .panel-actions button { font-size:.68rem; background:var(--paper-2); }
@@ -221,6 +227,9 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .shogi-board,.boards.count-4 .hand { width:min(100%,var(--four-board-size)); }
   .boards.count-4 .shogi-board { grid-template-rows:repeat(9,minmax(0,1fr)); overflow:hidden; }
   .boards.count-4 .hand { min-height:.72rem; line-height:.72rem; margin-block:.08rem; font-size:.53rem; }
+  .boards.count-4 .hand-pieces { gap:.16rem; }
+  .boards.count-4 .hand-piece { width:.63rem; height:.7rem; font-size:.46rem; filter:none; }
+  .boards.count-4 .hand-count { right:-.16rem; bottom:-.06rem; min-width:.5rem; padding:.01rem .06rem; font-size:.34rem; }
   .boards.count-4 .panel-actions { padding:.22rem; }
   .boards.count-4 .panel-actions button { padding:.22rem .35rem; font-size:.6rem; }
   .boards.count-4 .panel-details > summary { padding:.25rem; font-size:.6rem; }
