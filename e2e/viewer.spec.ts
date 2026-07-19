@@ -28,6 +28,18 @@ async function expectHeldPieceMatchesBoardPiece(panel: Locator) {
   ).toBeLessThanOrEqual(1);
 }
 
+function expectWarmOrange(color: string) {
+  const values = color.match(/\d+(?:\.\d+)?/g)?.slice(0, 3).map(Number);
+  expect(values, `色を解析できません: ${color}`).toHaveLength(3);
+  if (!values || values.length < 3) {
+    throw new Error(`色を解析できません: ${color}`);
+  }
+  const [red, green, blue] = values;
+  expect(red).toBeGreaterThan(green);
+  expect(green).toBeGreaterThan(blue);
+  expect(red).toBeGreaterThan(150);
+}
+
 const basePath = '/floodgate-multi-viewer/';
 
 test.beforeEach(async ({ page }) => {
@@ -76,21 +88,25 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
     return {
       borderStyle: style.borderTopStyle,
       borderWidth: Number.parseFloat(style.borderTopWidth),
+      borderColor: style.borderTopColor,
       backgroundImage: style.backgroundImage,
     };
   });
   expect(originMarker.borderStyle).toBe('dashed');
   expect(originMarker.borderWidth).toBeGreaterThanOrEqual(3);
+  expectWarmOrange(originMarker.borderColor);
   expect(originMarker.backgroundImage).toContain('radial-gradient');
   const destinationMarker = await lastDestination.evaluate((element) => {
     const style = getComputedStyle(element, '::after');
     return {
       borderStyle: style.borderTopStyle,
       borderWidth: Number.parseFloat(style.borderTopWidth),
+      borderColor: style.borderTopColor,
     };
   });
   expect(destinationMarker.borderStyle).toBe('solid');
   expect(destinationMarker.borderWidth).toBeGreaterThanOrEqual(4);
+  expectWarmOrange(destinationMarker.borderColor);
   const handPieces = page.locator('.hand-piece');
   expect(await handPieces.count()).toBeGreaterThan(0);
   await expect(handPieces.first()).toBeVisible();
@@ -101,6 +117,29 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   const panelWithHeldPiece = page.locator('.game-panel:has(.hand-piece)').first();
   await expect(panelWithHeldPiece).toBeVisible();
   await expectHeldPieceMatchesBoardPiece(panelWithHeldPiece);
+  const handCounts = page.locator('.hand-count');
+  // ライブ由来fixtureでは同種の持ち駒が複数ない場合がある。
+  // 枚数表示そのものは固定局面のユニットテストで保証し、存在時の見た目をここで検証する。
+  if ((await handCounts.count()) > 0) {
+    await expect(handCounts.first()).toBeVisible();
+    const badgeStyle = await handCounts.first().evaluate((element) => {
+      const style = getComputedStyle(element);
+      const box = element.getBoundingClientRect();
+      return {
+        fontSize: Number.parseFloat(style.fontSize),
+        borderWidth: Number.parseFloat(style.borderTopWidth),
+        color: style.color,
+        backgroundColor: style.backgroundColor,
+        width: box.width,
+        height: box.height,
+      };
+    });
+    expect(badgeStyle.fontSize).toBeGreaterThanOrEqual(8);
+    expect(badgeStyle.borderWidth).toBeGreaterThanOrEqual(2);
+    expect(badgeStyle.width).toBeGreaterThanOrEqual(14);
+    expect(badgeStyle.height).toBeGreaterThanOrEqual(12);
+    expect(badgeStyle.color).not.toBe(badgeStyle.backgroundColor);
+  }
 
   await page.getByRole('button', { name: '1局' }).click();
   await expect(page.getByTestId('boards').locator('.game-panel')).toHaveCount(1);
