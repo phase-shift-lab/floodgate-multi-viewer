@@ -1,6 +1,6 @@
 # 実施状況
 
-更新日: 2026-07-19
+更新日: 2026-07-22
 
 ## 完了
 
@@ -30,6 +30,8 @@
 - [x] スマートフォンは既定1局、2/4局選択時は横にはみ出さず縦1列に配置
 - [x] 最新局面の即時追従、過去局面閲覧時の追従停止、直前手の移動元・移動先強調を分離して実装
 - [x] 直前手の移動先を暖色オレンジの太実線、移動元（駒跡）を淡い橙の破線と中心点で色・形とも明確化
+- [x] 持ち駒の枚数を駒文字と重ならない専用下段へ分離し、後手側も枚数は正立表示
+- [x] 視聴者コメント共有案を安全要件つきでP1 BACKLOGへ分離
 - [x] 持ち駒2枚以上の枚数バッジを濃茶背景・白文字・明るい橙枠の「×N」表示へ拡大
 - [x] 初回表示をダークテーマに変更し、保存済みテーマは従来どおり復元
 - [x] PCの1・2局表示を画面高へ自動フィットし、1440×900・1280×720で盤面・主要操作・接続状態をページ縦スクロールなしで表示
@@ -80,6 +82,7 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-18 | 4局表示の持ち駒拡大 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、1024×768対象E2E 1/1、production build 29 modules・JS gzip 71.88 kB。1440px幅で持ち駒15×17px以上、1024px幅で11×12px以上を確認 |
 | 2026-07-19 | 持ち駒同寸化・直前手強調の最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・JS gzip 71.90 kB。持ち駒は盤上駒と同寸、移動先は赤い太実線、移動元は青い破線と中心点を確認 |
 | 2026-07-19 | 持ち駒枚数・駒跡色の最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・CSS gzip 5.19 kB・JS gzip 71.90 kB。持ち駒の「×N」バッジを拡大・高コントラスト化し、移動先を暖色オレンジの太実線、移動元を淡い橙の破線と中心点へ変更 |
+| 2026-07-22 | 持ち駒枚数専用行・コメント共有BACKLOGの最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・CSS gzip 4.98 kB・JS gzip 71.90 kB。持ち駒の枚数を駒文字と重ならない専用下段へ分離し、後手側も正立表示。コメント共有は安全要件つきP1として分離 |
 
 ## 簡易品質チェック
 

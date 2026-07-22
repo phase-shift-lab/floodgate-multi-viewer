@@ -20,7 +20,9 @@ function Hand({ side, state, upside = false }: { side: Side; state: BoardState; 
           {items.map(({ code, count }) => (
             <li key={code} className="hand-piece-item" aria-label={`${sideLabel}の${GLYPH[code]} ${count}枚`}>
               <span className={`hand-piece${upside ? ' upside' : ''}`} aria-hidden="true">{GLYPH[code]}</span>
-              {count > 1 && <span className="hand-count" aria-hidden="true">×{count}</span>}
+              <span className="hand-count-row" aria-hidden="true">
+                {count > 1 && <span className="hand-count">×{count}</span>}
+              </span>
             </li>
           ))}
         </ul>

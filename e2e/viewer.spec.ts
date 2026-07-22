@@ -125,6 +125,8 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
     const badgeStyle = await handCounts.first().evaluate((element) => {
       const style = getComputedStyle(element);
       const box = element.getBoundingClientRect();
+      const item = element.closest('.hand-piece-item');
+      const pieceBox = item?.querySelector('.hand-piece')?.getBoundingClientRect();
       return {
         fontSize: Number.parseFloat(style.fontSize),
         borderWidth: Number.parseFloat(style.borderTopWidth),
@@ -132,6 +134,9 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
         backgroundColor: style.backgroundColor,
         width: box.width,
         height: box.height,
+        badgeTop: box.top,
+        pieceBottom: pieceBox?.bottom ?? 0,
+        transform: style.transform,
       };
     });
     expect(badgeStyle.fontSize).toBeGreaterThanOrEqual(8);
@@ -139,6 +144,8 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
     expect(badgeStyle.width).toBeGreaterThanOrEqual(14);
     expect(badgeStyle.height).toBeGreaterThanOrEqual(12);
     expect(badgeStyle.color).not.toBe(badgeStyle.backgroundColor);
+    expect(badgeStyle.badgeTop).toBeGreaterThanOrEqual(badgeStyle.pieceBottom - 1);
+    expect(badgeStyle.transform).toBe('none');
   }
 
   await page.getByRole('button', { name: '1局' }).click();

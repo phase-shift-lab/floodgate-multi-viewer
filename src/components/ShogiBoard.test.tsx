@@ -20,11 +20,19 @@ describe('ShogiBoard held pieces', () => {
     const topHand = screen.getByRole('group', { name: '後手の持駒' });
     const bottomHand = screen.getByRole('group', { name: '先手の持駒' });
 
-    expect(within(topHand).getByRole('listitem', { name: '後手の角 2枚' })).toHaveTextContent('角×2');
-    expect(within(bottomHand).getByRole('listitem', { name: '先手の飛 1枚' })).toHaveTextContent('飛');
-    expect(within(bottomHand).getByRole('listitem', { name: '先手の歩 3枚' })).toHaveTextContent('歩×3');
-    expect(topHand.querySelector('.hand-piece')).toHaveClass('upside');
-    expect(bottomHand.querySelector('.hand-piece')).not.toHaveClass('upside');
+    const topBishop = within(topHand).getByRole('listitem', { name: '後手の角 2枚' });
+    const bottomRook = within(bottomHand).getByRole('listitem', { name: '先手の飛 1枚' });
+    const bottomPawn = within(bottomHand).getByRole('listitem', { name: '先手の歩 3枚' });
+
+    expect(topBishop).toHaveTextContent('角×2');
+    expect(bottomRook).toHaveTextContent('飛');
+    expect(bottomPawn).toHaveTextContent('歩×3');
+    expect(topBishop.querySelector('.hand-count-row .hand-count')).toHaveTextContent(/^×2$/);
+    expect(bottomPawn.querySelector('.hand-count-row .hand-count')).toHaveTextContent(/^×3$/);
+    expect(bottomRook.querySelector('.hand-count')).toBeNull();
+    expect(topBishop.querySelector('.hand-piece')).toHaveClass('upside');
+    expect(topBishop.querySelector('.hand-count')).not.toHaveClass('upside');
+    expect(bottomRook.querySelector('.hand-piece')).not.toHaveClass('upside');
   });
 
   it('swaps hand ownership when the board is flipped', () => {
