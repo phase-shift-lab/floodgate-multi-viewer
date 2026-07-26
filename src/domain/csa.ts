@@ -4,6 +4,30 @@ const BASE_PIECES: PieceCode[] = ['FU', 'KY', 'KE', 'GI', 'KI', 'KA', 'HI'];
 const DEMOTE: Partial<Record<PieceCode, PieceCode>> = {
   TO: 'FU', NY: 'KY', NK: 'KE', NG: 'GI', UM: 'KA', RY: 'HI',
 };
+const PROMOTABLE = new Set<PieceCode>(['FU', 'KY', 'KE', 'GI', 'KA', 'HI']);
+const PIECE_LABELS: Record<PieceCode, string> = {
+  FU: '歩',
+  KY: '香',
+  KE: '桂',
+  GI: '銀',
+  KI: '金',
+  KA: '角',
+  HI: '飛',
+  OU: '玉',
+  TO: 'と',
+  NY: '成香',
+  NK: '成桂',
+  NG: '成銀',
+  UM: '馬',
+  RY: '龍',
+};
+const FILE_LABELS = ['', '１', '２', '３', '４', '５', '６', '７', '８', '９'];
+const RANK_LABELS = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
+const FINAL_REASON_LABELS: Record<string, string> = {
+  SENNICHITE: '千日手',
+  JISHOGI: '持将棋',
+  CHUDAN: '中断',
+};
 
 export function createInitialBoard(): BoardState {
   const squares: BoardState['squares'] = {};
@@ -152,8 +176,59 @@ function resultFromReason(reason: string, lastSide?: Side): string {
   return reason.slice(1);
 }
 
-export function formatMove(move: Move): string {
+function coordinateLabel(square: string): string {
+  if (!/^[1-9]{2}$/.test(square)) return square;
+  return `${FILE_LABELS[Number(square[0])]}${RANK_LABELS[Number(square[1])]}`;
+}
+
+function inPromotionZone(side: Side, square: string): boolean {
+  if (!/^[1-9]{2}$/.test(square)) return false;
+  const rank = Number(square[1]);
+  return side === '+' ? rank <= 3 : rank >= 7;
+}
+
+function promotedFrom(move: Move, previousBoard?: BoardState): PieceCode | undefined {
+  if (!previousBoard || move.from === '00') return undefined;
+  const before = previousBoard.squares[move.from]?.code;
+  if (!before) return undefined;
+  return DEMOTE[move.piece] === before ? before : undefined;
+}
+
+function isNonPromotion(move: Move, previousBoard?: BoardState): boolean {
+  if (!previousBoard || move.from === '00') return false;
+  const before = previousBoard.squares[move.from]?.code;
+  if (!before || before !== move.piece || !PROMOTABLE.has(before)) return false;
+  return inPromotionZone(move.side, move.from) || inPromotionZone(move.side, move.to);
+}
+
+export function formatMove(move: Move, previousBoard?: BoardState, previousMove?: Move): string {
   const side = move.side === '+' ? '▲' : '△';
-  const from = move.from === '00' ? '打' : `(${move.from})`;
-  return `${side}${move.to}${move.piece}${from}`;
+  const sourcePiece = promotedFrom(move, previousBoard);
+  const piece = sourcePiece ?? move.piece;
+  const destination = previousMove?.to === move.to ? '同' : coordinateLabel(move.to);
+  let suffix = '';
+  if (move.from === '00') suffix = '打';
+  else if (sourcePiece) suffix = '成';
+  else if (isNonPromotion(move, previousBoard)) suffix = '不成';
+  return `${side}${destination}${PIECE_LABELS[piece] ?? move.piece}${suffix}`;
+}
+
+export function formatMoveInGame(game: ParsedGame, ply: number): string {
+  const move = game.moveList[ply - 1];
+  if (!move) return '';
+  return formatMove(move, boardAt(game, move.index - 1), game.moveList[move.index - 2]);
+}
+
+export function formatMoveSource(move: Move): string | undefined {
+  return move.from === '00' ? undefined : `(${move.from})`;
+}
+
+export function formatFinalReason(game: ParsedGame): string | undefined {
+  if (!game.finalReason) return undefined;
+  if (game.finalReason === 'TORYO') {
+    const lastSide = game.moveList.at(-1)?.side;
+    const resignedSide = lastSide ? (lastSide === '+' ? '-' : '+') : game.initial.turn;
+    return `${resignedSide === '+' ? '▲' : '△'}投了`;
+  }
+  return FINAL_REASON_LABELS[game.finalReason] ?? game.finalReason;
 }

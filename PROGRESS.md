@@ -1,6 +1,6 @@
 # 実施状況
 
-更新日: 2026-07-22
+更新日: 2026-07-26
 
 ## 完了
 
@@ -38,6 +38,10 @@
 - [x] ルート文字サイズを16.5pxへ拡大し、全体の可読性をわずかに向上
 - [x] 持ち駒を盤上と同系統の駒形UIへ変更し、枚数表示、先後の向き、盤面反転、アクセシブルな読み上げを実装
 - [x] 持ち駒と盤上の駒で同じ寸法変数を共有し、1・2・4局表示と単局拡大で常に同サイズへ調整
+- [x] 持ち駒を奥左・手前右の画面位置基準へ変更し、盤面反転時に先後と駒向きを入れ替え
+- [x] 各対局カード直下へ常時表示の操作棚を統合し、再生詳細だけを折りたたみ化
+- [x] CSA棋譜を日本語表記へ変換し、現在手スクロールとクリック移動に対応
+- [x] 終局後切替チェックボックスを大きくし、ラベル全体をクリック対象化
 
 公開先: https://phase-shift-lab.github.io/floodgate-multi-viewer/
 Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
@@ -83,6 +87,7 @@ Worker: https://floodgate-multi-viewer-api.toshibacreat.workers.dev
 | 2026-07-19 | 持ち駒同寸化・直前手強調の最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・JS gzip 71.90 kB。持ち駒は盤上駒と同寸、移動先は赤い太実線、移動元は青い破線と中心点を確認 |
 | 2026-07-19 | 持ち駒枚数・駒跡色の最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・CSS gzip 5.19 kB・JS gzip 71.90 kB。持ち駒の「×N」バッジを拡大・高コントラスト化し、移動先を暖色オレンジの太実線、移動元を淡い橙の破線と中心点へ変更 |
 | 2026-07-22 | 持ち駒枚数専用行・コメント共有BACKLOGの最終検証 | lint・typecheck成功、Vitest 10 files / 34 tests、Playwright Chromium 9/9、production build 29 modules・CSS gzip 4.98 kB・JS gzip 71.90 kB。持ち駒の枚数を駒文字と重ならない専用下段へ分離し、後手側も正立表示。コメント共有は安全要件つきP1として分離 |
+| 2026-07-26 | 操作棚・日本語棋譜・持ち駒配置の実装 | 持ち駒を奥左・手前右へ配置し、操作棚を盤面直下へ常時表示、日本語棋譜変換とクリック移動を追加。lint、typecheck、unit、E2E、production build 通過 |
 
 ## 簡易品質チェック
 

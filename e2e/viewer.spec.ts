@@ -74,7 +74,6 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   await expect(page.locator('.last-move-text').first()).toContainText('直前手');
   const markerPanel = panels.first();
   const lastOrigins = markerPanel.locator('.last-from');
-  await markerPanel.getByText('再生・詳細', { exact: true }).click();
   const previousMoveButton = markerPanel.getByRole('button', { name: '1手戻る' });
   for (let attempt = 0; attempt < 12 && (await lastOrigins.count()) === 0; attempt += 1) {
     await previousMoveButton.click();
@@ -240,7 +239,8 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
     const panel = page.locator('.game-panel.expanded');
     await expect(panel).toHaveCount(1);
     await expect(panel.getByRole('button', { name: '一覧へ戻る' })).toBeVisible();
-    await expect(panel.getByText('再生・詳細', { exact: true })).toBeVisible();
+    await expect(panel.locator('.control-shelf')).toBeVisible();
+    await expect(panel.getByText('詳細設定', { exact: true })).toBeVisible();
     await expect(panel.locator('.connection')).toBeVisible();
     const boardWidth = await panel.locator('.shogi-board').evaluate((item) => item.getBoundingClientRect().width);
     expect(boardWidth).toBeGreaterThanOrEqual(viewport.minimumBoard);
@@ -249,7 +249,7 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
     const verticalOverflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
     expect(verticalOverflow).toBeLessThanOrEqual(1);
 
-    await panel.getByText('再生・詳細', { exact: true }).click();
+    await panel.getByText('詳細設定', { exact: true }).click();
     const openPanelBottom = await panel.evaluate((item) => item.getBoundingClientRect().bottom);
     expect(openPanelBottom).toBeLessThanOrEqual(viewport.height);
   }
@@ -303,15 +303,17 @@ test('過去対局を選び、手動移動・再生・棋譜クリックを操�
   await page.locator('.archive-list > button').first().click();
 
   const panel = page.locator('.game-panel').first();
+  await expect(panel.locator('.control-shelf')).toBeVisible();
   await expect(panel.getByText(/20手 \/ 20手/)).toBeVisible();
-  await panel.getByText('再生・詳細', { exact: true }).click();
   await panel.getByRole('button', { name: '1手戻る' }).click();
   await expect(panel.getByText(/19手 \/ 20手/)).toBeVisible();
   await panel.getByRole('button', { name: '最初' }).click();
+  await panel.getByText('詳細設定', { exact: true }).click();
   await panel.getByLabel('任意再生速度（秒）').fill('0.1');
   await panel.getByRole('button', { name: '再生' }).click();
   await expect(panel.getByText(/1手 \/ 20手/)).toBeVisible({ timeout: 2_000 });
   await panel.getByRole('button', { name: /棋譜を表示/ }).click();
+  await expect(panel.locator('.move-list')).toContainText(/▲|△/);
   await panel.getByRole('button', { name: /^5\./ }).click();
   await expect(panel.getByText(/5手 \/ 20手/)).toBeVisible();
 });

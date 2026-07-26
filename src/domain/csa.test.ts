@@ -1,4 +1,13 @@
-import { applyMove, boardAt, createInitialBoard, parseCsa } from './csa';
+import {
+  applyMove,
+  boardAt,
+  createInitialBoard,
+  formatFinalReason,
+  formatMove,
+  formatMoveInGame,
+  formatMoveSource,
+  parseCsa,
+} from './csa';
 import type { Move } from './types';
 
 describe('CSA parser', () => {
@@ -45,5 +54,33 @@ describe('CSA parser', () => {
   it('parses ratings in current Floodgate CSA metadata', () => {
     const game = parseCsa(`N+AobaZero\nN-nshogi-dev\n'black_rate:AobaZero:3393\n'white_rate:nshogi-dev:3776\nPI\n+`);
     expect(game).toMatchObject({ blackRate: 3393, whiteRate: 3776 });
+  });
+
+  it('formats CSA moves as Japanese kifu notation', () => {
+    const game = parseCsa(`V2.2\nN+Alpha\nN-Beta\nPI\n+\n+7776FU\n-3334FU\n+8822UM\n-3122GI\n+0055KA\n%TORYO`);
+
+    expect(game.moveList.map((move) => formatMoveInGame(game, move.index))).toEqual([
+      '▲７六歩',
+      '△３四歩',
+      '▲２二角成',
+      '△同銀',
+      '▲５五角打',
+    ]);
+    expect(formatMoveSource(game.moveList[0])).toBe('(77)');
+    expect(formatMoveSource(game.moveList[4])).toBeUndefined();
+    expect(formatFinalReason(game)).toBe('△投了');
+  });
+
+  it('marks non-promotion when a promotable piece stays unpromoted in the zone', () => {
+    const board = createInitialBoard();
+    board.squares['77'] = { side: '-', code: 'FU' };
+    const move: Move = { index: 1, side: '-', from: '77', to: '78', piece: 'FU', raw: '-7778FU' };
+    expect(formatMove(move, board)).toBe('△７八歩不成');
+  });
+
+  it('formats incomplete move records from available information only', () => {
+    const move: Move = { index: 2, side: '-', from: '31', to: '22', piece: 'GI', raw: '-3122GI' };
+    const previousMove: Move = { index: 1, side: '+', from: '88', to: '22', piece: 'UM', raw: '+8822UM' };
+    expect(formatMove(move, undefined, previousMove)).toBe('△同銀');
   });
 });

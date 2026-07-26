@@ -7,14 +7,14 @@ const GLYPH: Record<PieceCode, string> = {
 
 const HAND_ORDER: PieceCode[] = ['HI', 'KA', 'KI', 'GI', 'KE', 'KY', 'FU'];
 
-function Hand({ side, state, upside = false }: { side: Side; state: BoardState; upside?: boolean }) {
+function Hand({ side, state, position, upside = false }: { side: Side; state: BoardState; position: 'front' | 'back'; upside?: boolean }) {
   const sideLabel = side === '+' ? '先手' : '後手';
   const items = HAND_ORDER.flatMap((code) => {
     const count = state.hands[side][code] ?? 0;
     return count ? [{ code, count }] : [];
   });
   return (
-    <div className="hand" role="group" aria-label={`${sideLabel}の持駒`}>
+    <div className={`hand ${position}`} role="group" aria-label={`${sideLabel}の持駒`} data-position={position}>
       {items.length ? (
         <ul className="hand-pieces">
           {items.map(({ code, count }) => (
@@ -41,7 +41,7 @@ export function ShogiBoard({ state, flipped, lastMove }: { state: BoardState; fl
   return (
     <div className="board-wrap">
       <div className="board-stack">
-        <Hand side={topSide} state={state} upside />
+        <Hand side={topSide} state={state} position="back" upside />
         <div className="shogi-board" role="grid" aria-label={`将棋盤 ${state.ply}手目`}>
           {ranks.flatMap((rank) => files.map((file) => {
             const square = `${file}${rank}`;
@@ -55,7 +55,7 @@ export function ShogiBoard({ state, flipped, lastMove }: { state: BoardState; fl
             );
           }))}
         </div>
-        <Hand side={bottomSide} state={state} />
+        <Hand side={bottomSide} state={state} position="front" />
       </div>
     </div>
   );
