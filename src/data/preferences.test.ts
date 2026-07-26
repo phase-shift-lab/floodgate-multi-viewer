@@ -28,6 +28,13 @@ describe('preferences', () => {
     expect(loadSettings().theme).toBe('light');
   });
 
+  it('終局後の注目局切替は既定で有効、保存済み設定を優先する', () => {
+    expect(loadSettings().autoSwitchFinished).toBe(true);
+
+    saveSettings({ ...loadSettings(), autoSwitchFinished: false });
+    expect(loadSettings().autoSwitchFinished).toBe(false);
+  });
+
   it('共有URLで対局・手数・表示局数・盤面方向を復元できる', () => {
     const url = new URL(shareUrl({ game: 'game-1', ply: 12, view: 'archive', boards: 2, orientation: 'white' }));
     expect(readShareState(url.search)).toEqual({ game: 'game-1', ply: 12, view: 'archive', boards: 2, orientation: 'white' });

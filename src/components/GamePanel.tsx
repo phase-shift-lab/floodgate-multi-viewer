@@ -145,11 +145,19 @@ export function GamePanel(props: Props) {
   return (
     <article className={`game-panel ${props.expanded ? 'expanded' : ''}`} tabIndex={0} onKeyDown={onKeyDown} aria-label={`${props.summary.black} 対 ${props.summary.white}`}>
       <header className="game-header">
-        <select aria-label="表示する対局" value={props.summary.id} onChange={(event) => props.onSelect(event.target.value)}>
-          {props.games.map((item) => <option key={item.id} value={item.id}>{item.live ? '●' : '○'} {item.black} vs {item.white}</option>)}
-        </select>
-        <span className={`badge ${props.summary.live ? 'live' : ''}`}>{props.summary.live ? 'LIVE' : '終局'}</span>
-        <button type="button" aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
+        <div className="game-selector-row">
+          <select aria-label="表示する対局" value={props.summary.id} onChange={(event) => props.onSelect(event.target.value)}>
+            {props.games.map((item) => <option key={item.id} value={item.id}>{item.live ? '●' : '○'} {item.black} vs {item.white}</option>)}
+          </select>
+          <span className={`badge ${props.summary.live ? 'live' : ''}`}>{props.summary.live ? 'LIVE' : '終局'}</span>
+          <button type="button" aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
+        </div>
+        <div className="panel-actions">
+          <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
+          <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
+          <button aria-expanded={movesOpen} onClick={() => setMovesOpen((value) => !value)}>棋譜{movesOpen ? 'を閉じる' : 'を表示'}</button>
+          <button onClick={copyShare}>共有</button>
+        </div>
       </header>
 
       <div className="players">
@@ -165,16 +173,7 @@ export function GamePanel(props: Props) {
 
       <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
 
-      {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
-      {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
-
-      <div className="control-shelf">
-        <div className="panel-actions">
-          <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
-          <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
-          <button aria-expanded={movesOpen} onClick={() => setMovesOpen((value) => !value)}>棋譜{movesOpen ? 'を閉じる' : 'を表示'}</button>
-          <button onClick={copyShare}>共有</button>
-        </div>
+      <div className="top-control-shelf">
         <div className="replay" aria-label="棋譜再生操作">
           <button aria-label="最初" onClick={() => moveTo(0)}>⏮</button>
           <button className="step-button" aria-label="1手戻る" onClick={() => moveTo(safePly - 1)}>◀</button>
@@ -184,34 +183,36 @@ export function GamePanel(props: Props) {
           <input aria-label="手数" type="range" min="0" max={maxPly} value={safePly} onChange={(event) => moveTo(Number(event.target.value))} />
           <span className="replay-status" aria-label="現在手数">{safePly} / {maxPly}手</span>
         </div>
-      </div>
-      {shareMessage && <output className="sr-message">{shareMessage}</output>}
-
-      <details className="panel-details">
-        <summary>詳細設定</summary>
-        <div className="replay-settings">
-          <label>再生速度
-            <select value={SPEEDS.includes(speed) ? speed : 'custom'} onChange={(event) => {
-              if (event.target.value !== 'custom') { const value = Number(event.target.value); setSpeed(value); props.onSpeedChange(value); }
-            }}>
-              {SPEEDS.map((value) => <option key={value} value={value}>{value}秒</option>)}
-              <option value="custom">任意</option>
-            </select>
-          </label>
-          <label className="custom-speed">任意秒数<input aria-label="任意再生速度（秒）" type="number" min="0.1" max="60" step="0.1" value={speed} onChange={(event) => { const value = clampPlaybackSeconds(Number(event.target.value)); setSpeed(value); props.onSpeedChange(value); }} /></label>
+        {shareMessage && <output className="sr-message">{shareMessage}</output>}
+        <details className="panel-details">
+          <summary>詳細設定</summary>
+          <div className="replay-settings">
+            <label>再生速度
+              <select value={SPEEDS.includes(speed) ? speed : 'custom'} onChange={(event) => {
+                if (event.target.value !== 'custom') { const value = Number(event.target.value); setSpeed(value); props.onSpeedChange(value); }
+              }}>
+                {SPEEDS.map((value) => <option key={value} value={value}>{value}秒</option>)}
+                <option value="custom">任意</option>
+              </select>
+            </label>
+            <label className="custom-speed">任意秒数<input aria-label="任意再生速度（秒）" type="number" min="0.1" max="60" step="0.1" value={speed} onChange={(event) => { const value = clampPlaybackSeconds(Number(event.target.value)); setSpeed(value); props.onSpeedChange(value); }} /></label>
+          </div>
+          {game?.evaluationsTrusted && <details className="evaluations"><summary>CSA評価値</summary><p>評価値の尺度はAI間で同じとは限りません。</p><ul>{game.moveList.filter((move) => move.evaluation !== undefined).map((move) => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
+        </details>
+        <div className="connection">
+          <span className={`dot ${connection}`} aria-hidden="true" />接続: {connectionLabel(connection)}
+          <span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span>
+          {connection === 'paused' && <span>更新停止（自動再試行中）</span>}
         </div>
-        {game?.evaluationsTrusted && <details className="evaluations"><summary>CSA評価値</summary><p>評価値の尺度はAI間で同じとは限りません。</p><ul>{game.moveList.filter((move) => move.evaluation !== undefined).map((move) => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
-      </details>
+      </div>
+
+      {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
+      {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
 
       {movesOpen && game && <ol className="move-list" aria-label="棋譜">
         {moveLabels.map(({ move, label, source }) => <li key={move.index}><button ref={safePly === move.index ? currentMoveRef : undefined} aria-current={safePly === move.index ? 'step' : undefined} title={source ? `移動元 ${source}` : undefined} onClick={() => moveTo(move.index)}>{move.index}. {label}{source ? ` ${source}` : ''}{move.time !== undefined ? ` (${move.time}秒)` : ''}</button></li>)}
         {finalReason && <li className="move-result"><span>{game.moveList.length + 1}. {finalReason}</span></li>}
       </ol>}
-      <footer className="connection">
-        <span className={`dot ${connection}`} aria-hidden="true" />接続: {connectionLabel(connection)}
-        <span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span>
-        {connection === 'paused' && <span>更新停止（自動再試行中）</span>}
-      </footer>
     </article>
   );
 }

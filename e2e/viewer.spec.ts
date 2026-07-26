@@ -239,7 +239,7 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
     const panel = page.locator('.game-panel.expanded');
     await expect(panel).toHaveCount(1);
     await expect(panel.getByRole('button', { name: '一覧へ戻る' })).toBeVisible();
-    await expect(panel.locator('.control-shelf')).toBeVisible();
+    await expect(panel.locator('.top-control-shelf')).toBeVisible();
     await expect(panel.getByText('詳細設定', { exact: true })).toBeVisible();
     await expect(panel.locator('.connection')).toBeVisible();
     const boardWidth = await panel.locator('.shogi-board').evaluate((item) => item.getBoundingClientRect().width);
@@ -303,7 +303,7 @@ test('過去対局を選び、手動移動・再生・棋譜クリックを操�
   await page.locator('.archive-list > button').first().click();
 
   const panel = page.locator('.game-panel').first();
-  await expect(panel.locator('.control-shelf')).toBeVisible();
+  await expect(panel.locator('.top-control-shelf')).toBeVisible();
   await expect(panel.getByText(/20手 \/ 20手/)).toBeVisible();
   await panel.getByRole('button', { name: '1手戻る' }).click();
   await expect(panel.getByText(/19手 \/ 20手/)).toBeVisible();

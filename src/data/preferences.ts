@@ -9,7 +9,7 @@ export const DEFAULT_SETTINGS: ViewerSettings = {
   playbackSeconds: 1,
   orientation: 'black',
   theme: 'dark',
-  autoSwitchFinished: false,
+  autoSwitchFinished: true,
 };
 
 function read<T>(key: string, fallback: T): T {

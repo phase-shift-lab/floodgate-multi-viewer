@@ -70,9 +70,10 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .boards.count-1 { width:min(840px,100%); margin-inline:auto; }
 .game-panel { min-width:0; background:var(--paper); border:1px solid var(--line); border-radius:.75rem; box-shadow:var(--shadow); overflow:hidden; }
 .game-panel.expanded { width:min(900px,100%); margin:auto; }
-.game-header { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:.5rem; align-items:center; padding:.6rem .7rem; border-bottom:1px solid var(--line); background:var(--paper-2); }
-.game-header select { width:100%; min-width:0; padding:.4rem; font-size:.73rem; text-overflow:ellipsis; }
-.game-header button { font-size:.7rem; padding:.35rem .5rem; }
+.game-header { min-width:0; display:grid; gap:.4rem; padding:.55rem .7rem .45rem; border-bottom:1px solid var(--line); background:var(--paper-2); }
+.game-selector-row { min-width:0; display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:.5rem; align-items:center; }
+.game-selector-row select { width:100%; min-width:0; padding:.4rem; font-size:.73rem; text-overflow:ellipsis; }
+.game-selector-row button { font-size:.7rem; padding:.35rem .5rem; }
 .badge { border:1px solid var(--line); color:var(--muted); border-radius:99px; font-size:.63rem; font-weight:700; padding:.25rem .45rem; }
 .badge.live { color:#aa2f22; border-color:#e3aaa2; background:var(--accent-soft); }
 .players { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); border-bottom:1px solid var(--line); }
@@ -111,9 +112,9 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .hand-count { box-sizing:border-box; display:grid; place-items:center; width:auto; max-width:none; min-width:1.65rem; height:max(.82rem,calc(var(--board-piece-font-size) * .7)); min-height:0; padding:0 .24rem; border:2px solid var(--count-badge-border); border-radius:999px; color:var(--count-badge-text); background:var(--count-badge-bg); box-shadow:0 1px 5px rgb(0 0 0 / 58%); font-size:clamp(.62rem,calc(var(--board-piece-font-size) * .68),.84rem); font-weight:900; line-height:1; text-align:center; text-shadow:0 1px 1px rgb(0 0 0 / 75%); transform:none; }
 .hand-empty { opacity:.75; }
 .loading,.board-skeleton,.empty-state { min-height:16rem; display:grid; place-items:center; color:var(--muted); background:var(--paper); border:1px dashed var(--line); border-radius:.7rem; }
-.control-shelf { border-top:1px solid var(--line); }
-.panel-actions { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:center; padding:.45rem .5rem .2rem; }
-.panel-actions button { font-size:.68rem; background:var(--paper-2); }
+.top-control-shelf { border-bottom:1px solid var(--line); background:var(--paper); }
+.panel-actions { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:flex-start; padding:0; }
+.panel-actions button { font-size:.68rem; background:var(--paper); }
 .panel-details { border-top:1px solid var(--line); }
 .panel-details > summary { cursor:pointer; padding:.42rem .65rem; color:var(--muted); font-size:.68rem; text-align:center; list-style-position:inside; }
 .panel-details[open] > summary { color:var(--ink); background:var(--paper-2); }
@@ -240,9 +241,10 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
     align-content:start;
     min-height:0;
   }
-  .boards.count-4 .game-header { padding:.24rem .35rem; }
-  .boards.count-4 .game-header select { padding:.25rem; font-size:.65rem; }
-  .boards.count-4 .game-header button { padding:.25rem .35rem; font-size:.62rem; }
+  .boards.count-4 .game-header { gap:.12rem; padding:.24rem .35rem; }
+  .boards.count-4 .game-selector-row { gap:.18rem; }
+  .boards.count-4 .game-selector-row select { padding:.25rem; font-size:.65rem; }
+  .boards.count-4 .game-selector-row button { padding:.25rem .35rem; font-size:.62rem; }
   .boards.count-4 .players > div { padding:.25rem .35rem; }
   .boards.count-4 .players strong { font-size:.68rem; }
   .boards.count-4 .players span { font-size:.62rem; }
@@ -258,7 +260,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .hand-count { min-width:1.35rem; height:max(.68rem,calc(var(--board-piece-font-size) * .68)); padding:0 .16rem; font-size:.55rem; }
   .boards.count-4 .panel-actions { gap:.12rem; padding:.12rem .14rem .02rem; }
   .boards.count-4 .panel-actions button { padding:.16rem .25rem; font-size:.56rem; }
-  .boards.count-4 .control-shelf { gap:0; padding:0; }
+  .boards.count-4 .top-control-shelf { gap:0; padding:0; }
   .boards.count-4 .replay { grid-template-columns:repeat(5,auto) minmax(2.8rem,1fr); gap:.1rem; padding:.02rem .14rem .1rem; }
   .boards.count-4 .replay button { padding:.16rem .24rem; font-size:.54rem; }
   .boards.count-4 .replay .step-button { min-width:1.85rem; padding:.23rem .33rem; font-size:.68rem; }
