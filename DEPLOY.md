@@ -41,6 +41,8 @@ npm run deploy:worker
 
 本番設定では一時的なpreview URLを `preview_urls = false` で無効化しています。
 
+視聴統計はWorkerのDurable Objectに保存します。`wrangler.toml` の `STATS_ROOM` binding と migrations を含めて配備されている必要があります。未配備または未接続時、UIは統計値を `-` として表示します。
+
 ローカルでWorkerとUIを接続する場合:
 
 ```powershell

@@ -6,3 +6,11 @@ preview_urls = false
 
 [vars]
 ALLOWED_ORIGINS = "http://localhost:5173,https://phase-shift-lab.github.io"
+
+[[durable_objects.bindings]]
+name = "STATS_ROOM"
+class_name = "StatsRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StatsRoom"]

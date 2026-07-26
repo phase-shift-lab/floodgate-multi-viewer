@@ -1,4 +1,4 @@
-import { cachePolicy, cachedResponseIsFresh, csaPath, dayPath, ratingsPath, resolvePath } from './index';
+import { cachePolicy, cachedResponseIsFresh, csaPath, dayPath, normalizeGameIds, ratingsPath, resolvePath, validStatsSessionId } from './index';
 
 describe('restricted Worker routing', () => {
   it('maps only valid calendar dates and fixed rating snapshots', () => {
@@ -32,5 +32,13 @@ describe('restricted Worker routing', () => {
     const now = Date.parse('2026-07-17T00:00:03.000Z');
     expect(cachedResponseIsFresh(cached, 3, now)).toBe(true);
     expect(cachedResponseIsFresh(cached, 3, now + 1)).toBe(false);
+  });
+
+  it('normalizes stats identifiers without accepting arbitrary payloads', () => {
+    expect(validStatsSessionId('session_123456')).toBe(true);
+    expect(validStatsSessionId('short')).toBe(false);
+    expect(validStatsSessionId('../session123')).toBe(false);
+    expect(normalizeGameIds([' a ', 'a', '', 42, 'x'.repeat(241), 'b'])).toEqual(['a', 'b']);
+    expect(normalizeGameIds('a,b,a')).toEqual(['a', 'b']);
   });
 });

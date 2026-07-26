@@ -29,6 +29,8 @@ async function fetchText(path: string, signal: AbortSignal, attempts = 2): Promi
 
 export interface CatalogResult { games: GameSummary[]; stale: boolean; fixture: boolean; fetchedAt: Date }
 export interface GameResult { game: ParsedGame; stale: boolean; fixture: boolean; fetchedAt: Date }
+export interface GameStatSummary { viewsToday: number; concurrent: number }
+export interface ViewerStats { available: boolean; day: string; pageViewsToday: number; games: Record<string, GameStatSummary> }
 
 function localDate(date = new Date()): string {
   const year = date.getFullYear();
@@ -85,6 +87,37 @@ export async function loadGame(summary: GameSummary, signal: AbortSignal): Promi
     if (signal.aborted) throw error;
     return { game: fixtureGame(summary), stale: true, fixture: true, fetchedAt: new Date() };
   }
+}
+
+async function fetchStats(path: string, init: RequestInit, signal: AbortSignal): Promise<ViewerStats | undefined> {
+  if (!API_BASE) return undefined;
+  try {
+    const headers = new Headers(init.headers);
+    headers.set('Accept', 'application/json');
+    if (init.body) headers.set('Content-Type', 'application/json');
+    const response = await fetch(`${API_BASE}${path}`, { ...init, signal, headers });
+    if (!response.ok) return undefined;
+    const stats = await response.json() as ViewerStats;
+    return stats.available ? stats : undefined;
+  } catch (error) {
+    if (signal.aborted) throw error;
+    return undefined;
+  }
+}
+
+export function loadStats(gameIds: string[], signal: AbortSignal): Promise<ViewerStats | undefined> {
+  const params = new URLSearchParams();
+  if (gameIds.length) params.set('games', gameIds.join(','));
+  const query = params.toString();
+  return fetchStats(`/api/stats${query ? `?${query}` : ''}`, { method: 'GET' }, signal);
+}
+
+export function recordPageView(sessionId: string, signal: AbortSignal): Promise<ViewerStats | undefined> {
+  return fetchStats('/api/stats/page', { method: 'POST', body: JSON.stringify({ sessionId }) }, signal);
+}
+
+export function heartbeatStats(sessionId: string, gameIds: string[], signal: AbortSignal): Promise<ViewerStats | undefined> {
+  return fetchStats('/api/stats/heartbeat', { method: 'POST', body: JSON.stringify({ sessionId, gameIds }) }, signal);
 }
 
 export function pollDelay(failures: number, hidden: boolean): number {

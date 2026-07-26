@@ -83,6 +83,8 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .players span { color:var(--muted); font:600 .73rem/1 monospace; }
 .star { border:0; background:transparent; color:#bf8a24; padding:0; font-size:1rem; }
 .meta-row { display:flex; justify-content:center; flex-wrap:wrap; gap:.35rem .9rem; padding:.45rem; font-size:.68rem; color:var(--muted); border-bottom:1px solid var(--line); }
+.stat-pill { display:inline-flex; align-items:center; gap:.25rem; white-space:nowrap; }
+.stat-pill strong { color:var(--ink); font-weight:800; }
 .last-move-text { display:flex; justify-content:center; align-items:center; gap:.5rem; min-height:1.9rem; padding:.35rem .5rem; border-bottom:1px solid var(--line); color:var(--muted); font-size:.7rem; }
 .last-move-text strong { color:var(--accent); letter-spacing:.08em; }
 .new-moves { display:flex; justify-content:center; align-items:center; gap:.5rem; background:#e7f2ff; color:#25527a; padding:.4rem; font-size:.72rem; }
