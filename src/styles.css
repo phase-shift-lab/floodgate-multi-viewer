@@ -112,8 +112,8 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .hand-count { box-sizing:border-box; display:grid; place-items:center; width:auto; max-width:none; min-width:1.65rem; height:max(.82rem,calc(var(--board-piece-font-size) * .7)); min-height:0; padding:0 .24rem; border:2px solid var(--count-badge-border); border-radius:999px; color:var(--count-badge-text); background:var(--count-badge-bg); box-shadow:0 1px 5px rgb(0 0 0 / 58%); font-size:clamp(.62rem,calc(var(--board-piece-font-size) * .68),.84rem); font-weight:900; line-height:1; text-align:center; text-shadow:0 1px 1px rgb(0 0 0 / 75%); transform:none; }
 .hand-empty { opacity:.75; }
 .loading,.board-skeleton,.empty-state { min-height:16rem; display:grid; place-items:center; color:var(--muted); background:var(--paper); border:1px dashed var(--line); border-radius:.7rem; }
-.top-control-shelf { border-bottom:1px solid var(--line); background:var(--paper); }
-.panel-actions { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:flex-start; padding:0; }
+.top-control-shelf { border-top:1px solid var(--line); border-bottom:1px solid var(--line); background:var(--paper); }
+.panel-actions { display:flex; flex-wrap:wrap; gap:.35rem; justify-content:flex-start; padding:.35rem .65rem .1rem; }
 .panel-actions button { font-size:.68rem; background:var(--paper); }
 .panel-details { border-top:1px solid var(--line); }
 .panel-details > summary { cursor:pointer; padding:.42rem .65rem; color:var(--muted); font-size:.68rem; text-align:center; list-style-position:inside; }

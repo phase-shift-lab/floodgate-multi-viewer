@@ -1,6 +1,7 @@
 import type { ViewerSettings } from '../domain/types';
 
 const SETTINGS_KEY = 'fgmv:settings:v1';
+const SETTINGS_MIGRATION_KEY = 'fgmv:settings:migrated:auto-switch-finished-default-on';
 const FAVORITES_KEY = 'fgmv:favorites:v1';
 const RECENT_KEY = 'fgmv:recent:v1';
 
@@ -29,11 +30,18 @@ function read<T>(key: string, fallback: T): T {
 
 export function loadSettings(): ViewerSettings {
   const value = read(SETTINGS_KEY, DEFAULT_SETTINGS);
+  const autoSwitchFinished = localStorage.getItem(SETTINGS_MIGRATION_KEY)
+    ? value.autoSwitchFinished
+    : DEFAULT_SETTINGS.autoSwitchFinished;
+  if (!localStorage.getItem(SETTINGS_MIGRATION_KEY)) {
+    localStorage.setItem(SETTINGS_MIGRATION_KEY, '1');
+  }
   return {
     ...DEFAULT_SETTINGS,
     ...value,
     boardCount: [1, 2, 4].includes(value.boardCount) ? value.boardCount : DEFAULT_SETTINGS.boardCount,
     playbackSeconds: Math.min(60, Math.max(0.1, Number(value.playbackSeconds) || 1)),
+    autoSwitchFinished,
   };
 }
 

@@ -152,12 +152,6 @@ export function GamePanel(props: Props) {
           <span className={`badge ${props.summary.live ? 'live' : ''}`}>{props.summary.live ? 'LIVE' : '終局'}</span>
           <button type="button" aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
         </div>
-        <div className="panel-actions">
-          <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
-          <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
-          <button aria-expanded={movesOpen} onClick={() => setMovesOpen((value) => !value)}>棋譜{movesOpen ? 'を閉じる' : 'を表示'}</button>
-          <button onClick={copyShare}>共有</button>
-        </div>
       </header>
 
       <div className="players">
@@ -173,7 +167,16 @@ export function GamePanel(props: Props) {
 
       <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
 
+      {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
+
       <div className="top-control-shelf">
+        {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
+        <div className="panel-actions">
+          <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
+          <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
+          <button aria-expanded={movesOpen} onClick={() => setMovesOpen((value) => !value)}>棋譜{movesOpen ? 'を閉じる' : 'を表示'}</button>
+          <button onClick={copyShare}>共有</button>
+        </div>
         <div className="replay" aria-label="棋譜再生操作">
           <button aria-label="最初" onClick={() => moveTo(0)}>⏮</button>
           <button className="step-button" aria-label="1手戻る" onClick={() => moveTo(safePly - 1)}>◀</button>
@@ -205,9 +208,6 @@ export function GamePanel(props: Props) {
           {connection === 'paused' && <span>更新停止（自動再試行中）</span>}
         </div>
       </div>
-
-      {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
-      {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
 
       {movesOpen && game && <ol className="move-list" aria-label="棋譜">
         {moveLabels.map(({ move, label, source }) => <li key={move.index}><button ref={safePly === move.index ? currentMoveRef : undefined} aria-current={safePly === move.index ? 'step' : undefined} title={source ? `移動元 ${source}` : undefined} onClick={() => moveTo(move.index)}>{move.index}. {label}{source ? ` ${source}` : ''}{move.time !== undefined ? ` (${move.time}秒)` : ''}</button></li>)}

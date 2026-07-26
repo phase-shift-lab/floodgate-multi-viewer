@@ -28,9 +28,15 @@ describe('preferences', () => {
     expect(loadSettings().theme).toBe('light');
   });
 
-  it('終局後の注目局切替は既定で有効、保存済み設定を優先する', () => {
+  it('終局後の注目局切替は既定で有効、旧保存値は一度だけ有効へ移行する', () => {
     expect(loadSettings().autoSwitchFinished).toBe(true);
 
+    saveSettings({ ...loadSettings(), autoSwitchFinished: false });
+    expect(loadSettings().autoSwitchFinished).toBe(false);
+
+    localStorage.clear();
+    localStorage.setItem('fgmv:settings:v1', JSON.stringify({ autoSwitchFinished: false }));
+    expect(loadSettings().autoSwitchFinished).toBe(true);
     saveSettings({ ...loadSettings(), autoSwitchFinished: false });
     expect(loadSettings().autoSwitchFinished).toBe(false);
   });
