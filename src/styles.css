@@ -64,6 +64,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .auto-switch { display:flex; align-items:center; gap:.5rem; min-height:2.1rem; padding:.35rem .45rem; font-size:.86rem; color:var(--muted); cursor:pointer; }
 .auto-switch input { width:1.18rem; height:1.18rem; flex:0 0 auto; accent-color:var(--accent); }
 .legend { display:flex; flex-wrap:wrap; gap:1rem; font-size:.75rem; color:var(--muted); }
+.stats-status { font-weight:700; }
 .live-dot { display:inline-block; width:.5rem; height:.5rem; border-radius:50%; background:#d94b38; margin-right:.35rem; box-shadow:0 0 0 4px rgb(217 75 56 / 12%); }
 .boards { display:grid; gap:clamp(.8rem,1.4vw,1.25rem); align-items:start; }
 .boards.count-2,.boards.count-4 { grid-template-columns:repeat(2,minmax(0,1fr)); }

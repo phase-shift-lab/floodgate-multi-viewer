@@ -32,6 +32,7 @@ export default function App() {
   const [sort, setSort] = useState<'new' | 'high' | 'low'>('new');
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [viewerStats, setViewerStats] = useState<ViewerStats>();
+  const [statsChecked, setStatsChecked] = useState(false);
   const [statsSessionId] = useState(getStatsSessionId);
 
   useEffect(() => {
@@ -151,6 +152,12 @@ export default function App() {
         : isFourBoardLive
           ? 'four-board-main'
           : undefined;
+  const statsAvailable = Boolean(viewerStats);
+  const statsLabel = statsAvailable
+    ? `来場/日 ${formatMetric(viewerStats?.pageViewsToday)}`
+    : statsChecked
+      ? '統計 未接続'
+      : '統計 確認中';
 
   useEffect(() => {
     const controller = new AbortController();
@@ -158,6 +165,8 @@ export default function App() {
       if (stats) setViewerStats(stats);
     }).catch((error) => {
       if (!controller.signal.aborted) console.warn('stats page view failed', error);
+    }).finally(() => {
+      if (!controller.signal.aborted) setStatsChecked(true);
     });
     return () => controller.abort();
   }, [statsSessionId]);
@@ -172,6 +181,8 @@ export default function App() {
         if (stats) setViewerStats(stats);
       } catch (error) {
         if (!controller.signal.aborted) console.warn('stats heartbeat failed', error);
+      } finally {
+        if (!controller.signal.aborted) setStatsChecked(true);
       }
     };
     void send();
@@ -225,7 +236,7 @@ export default function App() {
         </section>}
 
         {view === 'live' && <section className="live-section" aria-label="対局盤面">
-          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span><i className="live-dot" />ライブ</span><span>来場/日 {formatMetric(viewerStats?.pageViewsToday)}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
+          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span><i className="live-dot" />ライブ</span><span className={statsAvailable ? undefined : 'stats-status'}>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
           {status === 'loading' ? <div className="board-skeleton" role="status">注目対局を選んでいます…</div> : <div className={`boards count-${visibleSlots.length}`} data-testid="boards">
             {visibleSlots.map((slot, index) => {
               const summary = games.find((game) => game.id === slot.id);

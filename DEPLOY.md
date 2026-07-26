@@ -41,7 +41,13 @@ npm run deploy:worker
 
 本番設定では一時的なpreview URLを `preview_urls = false` で無効化しています。
 
-視聴統計はWorkerのDurable Objectに保存します。`wrangler.toml` の `STATS_ROOM` binding と migrations を含めて配備されている必要があります。未配備または未接続時、UIは統計値を `-` として表示します。
+視聴統計はWorkerのDurable Objectに保存します。初回配備では `wrangler.toml` の `STATS_ROOM` binding と migrations をWorkerへ先に反映してください。Pagesだけを先に更新した場合や統計APIが未接続の場合、UIは `統計 未接続` と `-` を表示し、対局表示は継続します。
+
+Worker配備後は、次のURLで `"available":true` が返ることを確認します。
+
+```text
+https://floodgate-multi-viewer-api.toshibacreat.workers.dev/api/stats
+```
 
 ローカルでWorkerとUIを接続する場合:
 
