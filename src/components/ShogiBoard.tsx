@@ -21,7 +21,7 @@ function Hand({ side, state, position, upside = false }: { side: Side; state: Bo
             <li key={code} className="hand-piece-item" aria-label={`${sideLabel}の${GLYPH[code]} ${count}枚`}>
               <span className={`hand-piece${upside ? ' upside' : ''}`} aria-hidden="true">{GLYPH[code]}</span>
               <span className="hand-count-row" aria-hidden="true">
-                {count > 1 && <span className="hand-count">×{count}</span>}
+                {count > 1 && <span className="hand-count">{count}</span>}
               </span>
             </li>
           ))}

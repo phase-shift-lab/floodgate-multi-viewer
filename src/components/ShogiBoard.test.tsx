@@ -24,11 +24,11 @@ describe('ShogiBoard held pieces', () => {
     const bottomRook = within(bottomHand).getByRole('listitem', { name: '先手の飛 1枚' });
     const bottomPawn = within(bottomHand).getByRole('listitem', { name: '先手の歩 3枚' });
 
-    expect(topBishop).toHaveTextContent('角×2');
+    expect(topBishop).toHaveTextContent('角2');
     expect(bottomRook).toHaveTextContent('飛');
-    expect(bottomPawn).toHaveTextContent('歩×3');
-    expect(topBishop.querySelector('.hand-count-row .hand-count')).toHaveTextContent(/^×2$/);
-    expect(bottomPawn.querySelector('.hand-count-row .hand-count')).toHaveTextContent(/^×3$/);
+    expect(bottomPawn).toHaveTextContent('歩3');
+    expect(topBishop.querySelector('.hand-count-row .hand-count')).toHaveTextContent(/^2$/);
+    expect(bottomPawn.querySelector('.hand-count-row .hand-count')).toHaveTextContent(/^3$/);
     expect(bottomRook.querySelector('.hand-count')).toBeNull();
     expect(topBishop.querySelector('.hand-piece')).toHaveClass('upside');
     expect(topBishop.querySelector('.hand-count')).not.toHaveClass('upside');
