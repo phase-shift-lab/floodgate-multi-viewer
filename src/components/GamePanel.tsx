@@ -164,8 +164,8 @@ export function GamePanel(props: Props) {
         <span>{safePly}手 / {maxPly}手</span>
         <span>手番 {board?.turn === '+' ? '先手' : '後手'}</span>
         <span>{game?.result ?? (game?.live ? '対局中' : '結果不明')}</span>
-        <span className="stat-pill">観戦/日 <strong>{formatStat(props.stats?.viewsToday)}</strong></span>
-        <span className="stat-pill">同時 <strong>{formatStat(props.stats?.concurrent)}</strong></span>
+        <span className="stat-pill">観戦 <strong>{formatPeoplePerDay(props.stats?.viewsToday)}</strong></span>
+        <span className="stat-pill">同時 <strong>{formatPeople(props.stats?.concurrent)}</strong></span>
       </div>
 
       <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
@@ -226,4 +226,14 @@ function connectionLabel(state: ConnectionState): string {
 
 function formatStat(value: number | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP') : '-';
+}
+
+function formatPeoplePerDay(value: number | undefined): string {
+  const stat = formatStat(value);
+  return stat === '-' ? stat : `${stat}人/日`;
+}
+
+function formatPeople(value: number | undefined): string {
+  const stat = formatStat(value);
+  return stat === '-' ? stat : `${stat}人`;
 }

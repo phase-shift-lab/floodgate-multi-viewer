@@ -154,7 +154,7 @@ export default function App() {
           : undefined;
   const statsAvailable = Boolean(viewerStats);
   const statsLabel = statsAvailable
-    ? `来場/日 ${formatMetric(viewerStats?.pageViewsToday)}`
+    ? `来場 ${formatPeoplePerDay(viewerStats?.pageViewsToday)}`
     : statsChecked
       ? '統計 未接続'
       : '統計 確認中';
@@ -254,4 +254,9 @@ export default function App() {
 
 function formatMetric(value: number | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP') : '-';
+}
+
+function formatPeoplePerDay(value: number | undefined): string {
+  const metric = formatMetric(value);
+  return metric === '-' ? metric : `${metric}人/日`;
 }
