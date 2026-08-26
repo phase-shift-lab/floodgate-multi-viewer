@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'worker/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
     coverage: { reporter: ['text', 'html'] },
   },
 }));

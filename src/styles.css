@@ -311,7 +311,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .board-stack { --hand-count-overhang:max(.48rem,calc(var(--board-piece-font-size) * .54)); }
   .boards.count-4 .hand-count { min-width:1.4rem; padding:0 .18rem; font-size:clamp(.62rem,calc(var(--board-piece-font-size) * .84),.8rem); }
   .boards.count-4 {
-    --four-board-size:clamp(76px,calc((100dvh - 640px)/2),170px);
+    --four-board-size:clamp(74px,calc((100dvh - 640px)/2),170px);
     row-gap:.05rem;
   }
 }

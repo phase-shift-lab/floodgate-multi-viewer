@@ -4,8 +4,6 @@ const SETTINGS_KEY = 'fgmv:settings:v1';
 const SETTINGS_MIGRATION_KEY = 'fgmv:settings:migrated:auto-switch-finished-default-on';
 const FAVORITES_KEY = 'fgmv:favorites:v1';
 const RECENT_KEY = 'fgmv:recent:v1';
-const STATS_SESSION_KEY = 'fgmv:stats-session:v1';
-const STATS_SESSION_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
 
 export const DEFAULT_SETTINGS: ViewerSettings = {
   boardCount: typeof matchMedia === 'function' && matchMedia('(max-width: 767px)').matches ? 1 : 4,
@@ -58,16 +56,6 @@ export function addRecent(id: string): string[] {
   const next = [id, ...loadRecent().filter((value) => value !== id)].slice(0, 20);
   localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   return next;
-}
-
-export function getStatsSessionId(): string {
-  const existing = localStorage.getItem(STATS_SESSION_KEY);
-  if (existing && STATS_SESSION_PATTERN.test(existing)) return existing;
-  const generated = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-    ? crypto.randomUUID()
-    : `s_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
-  localStorage.setItem(STATS_SESSION_KEY, generated);
-  return generated;
 }
 
 export interface ShareState { game?: string; ply?: number; view?: 'live' | 'archive'; boards?: 1 | 2 | 4; orientation?: 'black' | 'white' }

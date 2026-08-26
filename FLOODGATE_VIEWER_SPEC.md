@@ -1,19 +1,19 @@
 # Floodgate Multi Viewer 実装仕様
 
-更新日: 2026-07-26
+更新日: 2026-08-26
 
 ## 目的と完了条件
 
-Floodgateの公開情報を低負荷に取得し、PCでは最大4局、スマートフォンでは1局を既定表示する非公式Web観戦アプリをGitHub Pagesで公開する。計画・モックではなく、パーサー、限定プロキシ、ライブ更新、過去局再生、永続化、共有URL、障害時fixture、テスト、CI、デプロイ文書を含む実用版を完了条件とする。
+同梱fixtureを使い、PCでは最大4局、スマートフォンでは1局を既定表示する非公式Web観戦アプリをGitHub Pagesで公開する。パーサー、過去局再生、永続化、共有URL、テスト、CI、デプロイ文書を完了条件とする。
 
 ## 調査結果と設計判断
 
 - リポジトリは空、Git未初期化のため Vite + React + TypeScript で新規構築する。
-- `wdoor.c.u-tokyo.ac.jp` は通常GETに `Access-Control-Allow-Origin` がなく、OPTIONSも405だったため、GitHub Pagesからの直接取得は不可と判断しCloudflare Workerを採用する。
-- Workerは任意URLを受けず、`today`、厳格な日付の`day`、検証済みCSA名の`csa`、レート一覧の`ratings`だけを上流の固定ホストへ変換する。
+- GitHub PagesからFloodgate本体への直接取得は行わず、CORS境界を持つ外部プロキシも配置しない。
+- `today`、`day`、`csa`、`ratings`は同梱fixtureを使ってオフラインで再現する。
 - HTML/CSA/レート解析はUIから分離し、2026-07-17取得の公開HTML・CSAを縮小したfixtureをオフラインフォールバックとテストに共用する。
 - 実ページの `li.gameitem`、`gi-moves`、`blackwin` / `whitewin`、名前付きCSAレート行、読み筋付き評価行を解析対象として検証する。
-- 上流負荷を抑えるため、一覧は30秒、進行CSAは3秒を基準にし、Worker edge cache、タブ非表示間隔延長、指数バックオフ、AbortControllerを組み合わせる。Workerは一覧15秒・CSA 3秒・レート6時間をfreshとし、障害時用の期限切れコピーを24時間保持する。
+- 外部通信を行わないため、ライブ更新、上流負荷制御、ネットワーク再試行は対象外とする。
 
 ## 機能要件
 
@@ -31,8 +31,8 @@ Floodgateの公開情報を低負荷に取得し、PCでは最大4局、スマ�
 
 ## 対象外（BACKLOG）
 
-PWA、ブラウザ通知、自動戦型判定、4局同期再生。視聴者コメント共有は投稿保存、荒らし対策、通報、削除、認証、Cloudflare側の永続ストレージが必要な独立機能としてBACKLOGへ分離する。外部解析SDK、広告SDK、秘密情報、任意URLプロキシは導入しない。
+PWA、ブラウザ通知、自動戦型判定、4局同期再生、ライブ更新、視聴統計。視聴者コメント共有は投稿保存、荒らし対策、通報、削除、認証が必要な独立機能としてBACKLOGへ分離する。外部解析SDK、広告SDK、秘密情報、任意URLプロキシは導入しない。
 
 ## 検証
 
-`npm run lint`、`npm run typecheck`、`npm run test`、`npm run test:e2e`、`npm run build`をすべて成功させる。Playwrightでは1920×900・1440×900・1280×720の4×1、1024×768の2×2、1440×900・1280×720の1・2局自動フィットと単局拡大、390×844の既定1局と2/4局縦配置を確認する。1・2局自動フィットではルート文字サイズ16.5px以上、盤面・主要操作・接続状態の表示領域内収容、ページ縦overflowなしを確認する。あわせて表示局数切替、最新追従、再生、手動移動、反転、状態復元、API障害、Pagesサブパスを検証する。
+`npm run lint`、`npm run typecheck`、`npm run test`、`npm run test:e2e`、`npm run build`をすべて成功させる。Playwrightではデスクトップ・モバイルの表示、局数切替、再生、反転、状態復元、Pagesサブパスを確認する。外部APIへのfetchがないことも確認する。

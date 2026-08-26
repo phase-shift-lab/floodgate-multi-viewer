@@ -337,11 +337,11 @@ test('盤面反転と設定をlocalStorageから復元する', async ({ page }) 
   await expect(page.locator('.game-panel').first().locator('.hand').first()).toHaveAttribute('aria-label', '先手の持駒');
 });
 
-test('API障害時はfixtureへフォールバックし、Pagesサブパスで動作する', async ({ page }) => {
+test('静的fixtureモードでPagesサブパスで動作する', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.reload();
   await expect(page).toHaveURL(new RegExp(`${basePath.replaceAll('/', '\\/')}$`));
-  await expect(page.getByText('オフラインデータで表示中')).toBeVisible();
+  await expect(page.getByText('静的fixtureで表示中')).toBeVisible();
   await expect(page.locator('.game-panel').first().getByText('接続: fixture')).toBeVisible();
   await page.getByRole('button', { name: '1局' }).click();
   await expect(page.getByRole('link', { name: 'Floodgate 公開情報' })).toHaveAttribute('href', 'https://wdoor.c.u-tokyo.ac.jp/shogi/');
