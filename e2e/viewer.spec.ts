@@ -178,6 +178,29 @@ test('PCの横長・低め画面でも4局を一列で画面内に収める', as
   }
 });
 
+test('PCの4局表示で詳細設定を開いても内容が見切れない', async ({ page }) => {
+  for (const viewport of [
+    { width: 1920, height: 900 },
+    { width: 1280, height: 720 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.reload();
+    const panel = page.getByTestId('boards').locator('.game-panel').first();
+
+    await panel.getByText('詳細設定', { exact: true }).click();
+    await expect(panel.locator('.replay-settings select')).toBeVisible();
+    await expect(panel.getByLabel('任意再生速度（秒）')).toBeVisible();
+    await expect(panel.locator('.connection')).toBeVisible();
+
+    const panelBottom = await panel.evaluate((item) => item.getBoundingClientRect().bottom);
+    const connectionBottom = await panel.locator('.connection').evaluate(
+      (item) => item.getBoundingClientRect().bottom,
+    );
+    expect(panelBottom).toBeLessThanOrEqual(viewport.height + 1);
+    expect(connectionBottom).toBeLessThanOrEqual(viewport.height + 1);
+  }
+});
+
 test('PCの1・2局表示は低い画面でも主要情報を自動フィットする', async ({ page }) => {
   for (const viewport of [
     { width: 1440, height: 900, singleMinimum: 470, dualMinimum: 400 },

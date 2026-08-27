@@ -270,6 +270,10 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .replay > input { grid-column:1/7; grid-row:2; }
   .boards.count-4 .replay-status { grid-column:6; grid-row:1; align-self:center; justify-self:end; min-width:0; font-size:.52rem; }
   .boards.count-4 .panel-details > summary { padding:.14rem; font-size:.56rem; }
+  .boards.count-4 .panel-details[open] { max-height:min(5rem,12dvh); overflow:auto; }
+  .boards.count-4 .game-panel:has(.panel-details[open]) {
+    --four-board-size:clamp(200px,min(16vw,calc(100dvh - 30rem)),300px);
+  }
   .boards.count-4 .connection { justify-content:center; padding:.12rem .25rem; font-size:.52rem; }
 }
 @media (min-width:1200px) {

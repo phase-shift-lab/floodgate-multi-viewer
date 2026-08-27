@@ -184,7 +184,7 @@ export default function App() {
         </section>}
 
         {view === 'live' && <section className="live-section" aria-label="対局盤面">
-          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span>静的データ</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
+          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
           {status === 'loading' ? <div className="board-skeleton" role="status">注目対局を選んでいます…</div> : <div className={`boards count-${visibleSlots.length}`} data-testid="boards">
             {visibleSlots.map((slot, index) => {
               const summary = games.find((game) => game.id === slot.id);
