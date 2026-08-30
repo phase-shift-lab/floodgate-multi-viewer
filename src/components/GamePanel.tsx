@@ -26,6 +26,7 @@ interface Props {
   onExpand: () => void;
   expanded: boolean;
   boardCount: 1 | 2 | 4;
+  fixture: boolean;
   onOrientationChange: (flipped: boolean) => void;
 }
 
@@ -148,7 +149,7 @@ export function GamePanel(props: Props) {
           <select aria-label="表示する対局" value={props.summary.id} onChange={(event) => props.onSelect(event.target.value)}>
             {props.games.map((item) => <option key={item.id} value={item.id}>{item.live ? '●' : '○'} {item.black} vs {item.white}</option>)}
           </select>
-          <span className={`badge ${props.summary.live ? 'live' : ''}`}>{props.summary.live ? 'LIVE' : '終局'}</span>
+          <span className={`badge ${props.summary.live && !props.fixture ? 'live' : ''}`}>{props.fixture ? 'FIXTURE' : props.summary.live ? 'LIVE' : '終局'}</span>
           <button type="button" aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
         </div>
       </header>

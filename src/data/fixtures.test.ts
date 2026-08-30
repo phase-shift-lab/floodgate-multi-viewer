@@ -1,7 +1,11 @@
-import { fixtureGame } from './fixtures';
+import { fixtureGame, fixtureSummaries } from './fixtures';
 import type { GameSummary } from '../domain/types';
 
 describe('real-data fixture fallback', () => {
+  it('uses distinct deterministic snapshots for the catalog boards', () => {
+    const snapshots = fixtureSummaries.map((summary) => fixtureGame(summary).moveList.length);
+    expect(new Set(snapshots.slice(0, 4)).size).toBeGreaterThan(1);
+  });
   it('adapts the fixture to the requested game without inventing unknown ratings', () => {
     const summary: GameSummary = {
       id: 'wdoor+floodgate-300-10F+unknown-black+unknown-white+20260717180000.csa',

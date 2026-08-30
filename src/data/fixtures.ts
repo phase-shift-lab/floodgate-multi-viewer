@@ -39,7 +39,24 @@ export const fixtureSummaries: GameSummary[] = fixtureGames.map((game) => ({
 }));
 
 export function fixtureGame(summary: GameSummary): ParsedGame {
-  return fixtureGames.find((game) => game.id === summary.id) ?? gameFromSummary(summary);
+  const index = fixtureSummaries.findIndex((game) => game.id === summary.id);
+  const game = fixtureGames[index] ?? gameFromSummary(summary);
+  if (index < 0) return game;
+
+  // Static mode uses one real CSA sample for several catalog entries. Keep the
+  // names/metadata from the catalog, but expose deterministic snapshots so a
+  // four-board view does not misleadingly render four identical positions.
+  const snapshotPly = [20, 16, 12, 8][index % 4];
+  if (snapshotPly >= game.moveList.length) return game;
+  const lines = game.sourceText.split(/\r?\n/);
+  let moves = 0;
+  const snapshot = lines.filter((line) => {
+    const isMove = /^[+-]\d{4}[A-Z]{2}$/.test(line);
+    if (!isMove) return moves <= snapshotPly;
+    moves += 1;
+    return moves <= snapshotPly;
+  }).join('\n');
+  return { ...parseCsa(snapshot, summary.id), ...summary, sourceText: snapshot };
 }
 
 export { ratingsHtml, sampleCsa, todayHtml };
