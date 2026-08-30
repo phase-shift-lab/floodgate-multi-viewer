@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { loadGame } from '../data/client';
+import { loadGame, type GameStatSummary } from '../data/client';
 import { shareUrl } from '../data/preferences';
 import { boardAt, formatFinalReason, formatMoveInGame, formatMoveSource } from '../domain/csa';
 import { updateLivePosition } from '../domain/liveFollow';
@@ -12,6 +12,7 @@ const SPEEDS = [0.25, 0.5, 1, 2, 3, 5, 10];
 
 interface Props {
   summary: GameSummary;
+  stats?: GameStatSummary;
   games: GameSummary[];
   defaultSpeed: number;
   initialPly?: number;
@@ -163,6 +164,8 @@ export function GamePanel(props: Props) {
         <span>{safePly}手 / {maxPly}手</span>
         <span>手番 {board?.turn === '+' ? '先手' : '後手'}</span>
         <span>{game?.result ?? (game?.live ? '対局中' : '結果不明')}</span>
+        <span className="stat-pill">観戦 <strong>{formatPeoplePerDay(props.stats?.viewsToday)}</strong></span>
+        <span className="stat-pill">同時 <strong>{formatPeople(props.stats?.concurrent)}</strong></span>
       </div>
 
       <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
@@ -219,4 +222,12 @@ export function GamePanel(props: Props) {
 
 function connectionLabel(state: ConnectionState): string {
   return { connecting: '接続中', online: 'オンライン', stale: 'stale', offline: 'fixture', paused: '更新停止' }[state];
+}
+
+function formatPeoplePerDay(value: number | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString('ja-JP')}人/日` : '-';
+}
+
+function formatPeople(value: number | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString('ja-JP')}人` : '-';
 }

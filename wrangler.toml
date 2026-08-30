@@ -1,0 +1,13 @@
+name = "floodgate"
+main = "worker/index.js"
+compatibility_date = "2026-08-30"
+workers_dev = true
+preview_urls = false
+
+[[durable_objects.bindings]]
+name = "STATS_ROOM"
+class_name = "StatsRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["StatsRoom"]

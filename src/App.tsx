@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { GamePanel } from './components/GamePanel';
-import { loadCatalog, loadDay, STATIC_MODE } from './data/client';
-import { addRecent, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
+import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
+import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
 import { compareGames, selectFeaturedGames } from './domain/selection';
 import type { GameSummary, ViewerSettings } from './domain/types';
 
@@ -30,6 +30,9 @@ export default function App() {
   const [maxRate, setMaxRate] = useState('');
   const [sort, setSort] = useState<'new' | 'high' | 'low'>('new');
   const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [viewerStats, setViewerStats] = useState<ViewerStats>();
+  const [statsChecked, setStatsChecked] = useState(false);
+  const [statsSessionId] = useState(getStatsSessionId);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -122,6 +125,7 @@ export default function App() {
   }, [games, query, group, resultFilter, minRate, maxRate, sort, favoriteOnly, favorites]);
 
   const visibleSlots = expanded !== undefined ? slots.slice(expanded, expanded + 1) : slots.slice(0, settings.boardCount);
+  const visibleGameIdsKey = visibleSlots.map((slot) => slot.id).join('\n');
   const isExpandedLive = view === 'live' && expanded !== undefined;
   const isSingleBoardLive = view === 'live' && !isExpandedLive && visibleSlots.length === 1;
   const isTwoBoardLive = view === 'live' && !isExpandedLive && visibleSlots.length === 2;
@@ -144,6 +148,45 @@ export default function App() {
         : isFourBoardLive
           ? 'four-board-main'
           : undefined;
+  const statsAvailable = Boolean(viewerStats);
+  const statsLabel = statsAvailable ? `来場 ${formatPeoplePerDay(viewerStats?.pageViewsToday)}` : statsChecked ? '統計 未接続' : '統計 確認中';
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void recordPageView(statsSessionId, controller.signal).then((stats) => {
+      if (stats) setViewerStats(stats);
+    }).catch((error) => {
+      if (!controller.signal.aborted) console.warn('stats page view failed', error);
+    }).finally(() => {
+      if (!controller.signal.aborted) setStatsChecked(true);
+    });
+    return () => controller.abort();
+  }, [statsSessionId]);
+
+  useEffect(() => {
+    if (view !== 'live' || !visibleGameIdsKey) return;
+    const gameIds = visibleGameIdsKey.split('\n');
+    const controller = new AbortController();
+    const send = async () => {
+      try {
+        const stats = await heartbeatStats(statsSessionId, gameIds, controller.signal);
+        if (stats) setViewerStats(stats);
+      } catch (error) {
+        if (!controller.signal.aborted) console.warn('stats heartbeat failed', error);
+      } finally {
+        if (!controller.signal.aborted) setStatsChecked(true);
+      }
+    };
+    void send();
+    const timer = setInterval(send, 25_000);
+    const onVisibility = () => { if (!document.hidden) void send(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [view, statsSessionId, visibleGameIdsKey]);
   return (
     <div className={`app-shell${liveViewClass}`}>
       <a className="skip-link" href="#main">本文へ移動</a>
@@ -162,7 +205,7 @@ export default function App() {
       </header>
 
       <main id="main" className={liveMainClass}>
-        {status === 'fixture' && <div className="notice warning" role="status"><strong>静的fixtureで表示中</strong><span>外部APIを使わず、同梱データで表示しています。ライブ更新と視聴統計は無効です。</span></div>}
+        {status === 'fixture' && <div className="notice warning" role="status"><strong>静的fixtureで表示中</strong><span>LIVE中継に接続できないため、同梱データを表示しています。ライブ更新と統計は停止中です。</span></div>}
         {status === 'error' && <div className="notice error" role="alert">対局情報を取得できませんでした。しばらくしてから再読み込みしてください。</div>}
         {status === 'empty' && <div className="empty-state">表示できる対局がありません。</div>}
 
@@ -184,13 +227,13 @@ export default function App() {
         </section>}
 
         {view === 'live' && <section className="live-section" aria-label="対局盤面">
-          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
+          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span><i className="live-dot" />ライブ</span><span className={statsAvailable ? undefined : 'stats-status'}>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
           {status === 'loading' ? <div className="board-skeleton" role="status">注目対局を選んでいます…</div> : <div className={`boards count-${visibleSlots.length}`} data-testid="boards">
             {visibleSlots.map((slot, index) => {
               const summary = games.find((game) => game.id === slot.id);
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
-              return <GamePanel key={`${realIndex}:${slot.id}`} summary={summary} games={games} defaultSpeed={settings.playbackSeconds} initialPly={realIndex === 0 ? share.ply : undefined} defaultFlipped={settings.orientation === 'white'} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
+              return <GamePanel key={`${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={settings.playbackSeconds} initialPly={realIndex === 0 ? share.ply : undefined} defaultFlipped={settings.orientation === 'white'} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
             })}
           </div>}
         </section>}
@@ -198,4 +241,8 @@ export default function App() {
       <footer className="site-footer"><p><strong>非公式ビューア</strong> — Floodgateおよび運営組織とは関係ありません。表示内容の正確性・継続性を保証しません。</p><p>出典: <a href="https://wdoor.c.u-tokyo.ac.jp/shogi/" target="_blank" rel="noreferrer">Floodgate 公開情報</a> · 取得頻度を抑え、公開パスだけを参照します。</p></footer>
     </div>
   );
+}
+
+function formatPeoplePerDay(value: number | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString('ja-JP')}人/日` : '-';
 }
