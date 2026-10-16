@@ -45,6 +45,25 @@ const basePath = '/floodgate-multi-viewer/';
 test.beforeEach(async ({ page }) => {
   await page.goto(basePath);
   await page.evaluate(() => localStorage.clear());
+  await expect(page.locator('.evaluation-status').first()).toHaveText('解析完了', { timeout: 45_000 });
+});
+
+test('端末解析の評価値・日本語読み筋を表示し、OFF設定を復元する', async ({ page }) => {
+  const panel = page.locator('.game-panel').first();
+  await expect(panel.locator('.evaluation-number')).not.toHaveText('—');
+  await expect(panel.locator('.first-candidate strong')).toHaveText(/^[▲△]/);
+  await panel.locator('.analysis-lines summary').click();
+  const popover = panel.locator('.analysis-popover');
+  await expect(popover).toBeVisible();
+  await expect(popover.locator('li').first()).toContainText('第1候補');
+  await expect(popover.locator('li p').first()).toHaveText(/^[▲△]/);
+  const box = await popover.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await popover.getByRole('button', { name: '端末で解析 ON', exact: true }).click();
+  await page.reload();
+  await expect(page.locator('.game-panel').first().locator('.evaluation-status')).toHaveText('解析OFF');
 });
 
 test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }) => {
@@ -300,6 +319,8 @@ test('1024x768では4局を2x2でスクロールせず表示する', async ({ pa
 
 test('390x844では既定1局、2・4局選択時も縦一列で横にはみ出さない', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  // Initial automatic setup reloads once and saves desktop settings; test a fresh mobile default.
+  await page.evaluate(() => localStorage.clear());
   await page.reload();
   const panels = page.getByTestId('boards').locator('.game-panel');
   await expect(panels).toHaveCount(1);

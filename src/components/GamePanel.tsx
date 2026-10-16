@@ -7,6 +7,10 @@ import { clampPlaybackSeconds, nextPlaybackPly, playbackDelayMs } from '../domai
 import { rateLabel } from '../domain/selection';
 import type { ConnectionState, GameSummary, ParsedGame } from '../domain/types';
 import { ShogiBoard } from './ShogiBoard';
+import { LocalEvaluation } from './LocalEvaluation';
+import type { PanelSnapshot } from '../engine/isolation';
+import { toEnginePosition } from '../domain/localEvaluation';
+import { loadAnalysisEnabled, saveAnalysisEnabled } from '../data/analysisPreferences';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 3, 5, 10];
 
@@ -29,6 +33,9 @@ interface Props {
   boardCount: 1 | 2 | 4;
   fixture: boolean;
   onOrientationChange: (flipped: boolean) => void;
+  initialAnalysisEnabled?: boolean;
+  onAnalysisSnapshot?: (snapshot: PanelSnapshot) => void;
+  onPrepareAnalysis?: () => Promise<boolean>;
 }
 
 export function GamePanel(props: Props) {
@@ -43,6 +50,8 @@ export function GamePanel(props: Props) {
   const [fetchedAt, setFetchedAt] = useState<Date>();
   const [newMoves, setNewMoves] = useState(false);
   const [shareMessage, setShareMessage] = useState('');
+  const [analysisEnabled, setAnalysisEnabled] = useState(() => props.initialAnalysisEnabled !== false && loadAnalysisEnabled(props.summary.id));
+  const changeAnalysisEnabled = (enabled: boolean) => { saveAnalysisEnabled(props.summary.id, enabled); setAnalysisEnabled(enabled); };
   const failures = useRef(0);
   const lastPly = useRef(ply);
   const followingRef = useRef(true);
@@ -70,7 +79,8 @@ export function GamePanel(props: Props) {
         const update = updateLivePosition(lastPly.current, gameLengthRef.current, nextLength, followingRef.current);
         setGame(result.game);
         setPly(update.ply);
-        setNewMoves((current) => followingRef.current ? false : current || update.hasNewMoves);
+        const hasNewMoves = gameLengthRef.current > 0 && update.hasNewMoves;
+        setNewMoves((current) => followingRef.current ? false : current || hasNewMoves);
         lastPly.current = update.ply;
         gameLengthRef.current = nextLength;
         setConnection(result.fixture ? failureCount >= 5 ? 'paused' : 'offline' : result.stale ? 'stale' : 'online');
@@ -89,6 +99,11 @@ export function GamePanel(props: Props) {
   const maxPly = game?.moveList.length ?? 0;
   const safePly = Math.min(ply, maxPly);
   const board = useMemo(() => game ? boardAt(game, safePly) : undefined, [game, safePly]);
+  const enginePosition = useMemo(() => game ? toEnginePosition(game, safePly) : '', [game, safePly]);
+  const onAnalysisSnapshot = props.onAnalysisSnapshot;
+  useEffect(() => {
+    onAnalysisSnapshot?.({ summary: props.summary, pinned: props.pinned, ply: game ? safePly : ply, flipped, enabled: analysisEnabled });
+  }, [onAnalysisSnapshot, props.summary, props.pinned, safePly, ply, game, flipped, analysisEnabled]);
   const moveLabels = useMemo(() => game ? game.moveList.map((move) => ({
     move,
     label: formatMoveInGame(game, move.index),
@@ -168,7 +183,10 @@ export function GamePanel(props: Props) {
         <span className="stat-pill">同時 <strong>{formatPeople(props.stats?.concurrent)}</strong></span>
       </div>
 
-      <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
+      <div className="commentary-row">
+        <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
+        {board && props.onPrepareAnalysis && <LocalEvaluation board={board} position={enginePosition} enabled={analysisEnabled} onEnabledChange={changeAnalysisEnabled} onPrepare={props.onPrepareAnalysis} />}
+      </div>
 
       {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
 

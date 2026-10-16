@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { analysisRecovery, prepareAnalysis, type PanelSnapshot } from './engine/isolation';
+import { loadAnalysisEnabled } from './data/analysisPreferences';
 import { GamePanel } from './components/GamePanel';
 import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
 import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
@@ -14,13 +16,14 @@ export default function App() {
     ...(share.boards ? { boardCount: share.boards } : {}),
     ...(share.orientation ? { orientation: share.orientation } : {}),
   }));
-  const [games, setGames] = useState<GameSummary[]>([]);
-  const [slots, setSlots] = useState<Slot[]>([]);
+  const [games, setGames] = useState<GameSummary[]>(() => analysisRecovery?.slots.map((slot) => slot.summary) ?? []);
+  const [slots, setSlots] = useState<Slot[]>(() => analysisRecovery?.slots.map((slot) => ({ id: slot.summary.id, pinned: slot.pinned })) ?? []);
+  const analysisSnapshots = useRef(new Map<number, PanelSnapshot>());
   const [favorites, setFavorites] = useState(loadFavorites);
   const [recent, setRecent] = useState(loadRecent);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fixture' | 'empty' | 'error'>('loading');
-  const [view, setView] = useState<'live' | 'archive'>(share.view ?? 'live');
-  const [expanded, setExpanded] = useState<number>();
+  const [view, setView] = useState<'live' | 'archive'>(analysisRecovery?.view ?? share.view ?? 'live');
+  const [expanded, setExpanded] = useState<number | undefined>(analysisRecovery?.expanded);
   const [historyDate, setHistoryDate] = useState('');
   const [historyLoading, setHistoryLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -43,7 +46,9 @@ export default function App() {
         const result = await loadCatalog(controller.signal);
         setGames((current) => [...result.games, ...current.filter((game) => !result.games.some((fresh) => fresh.id === game.id))]);
         setStatus(result.games.length ? result.fixture ? 'fixture' : 'ready' : 'empty');
+        const restoringInitial = first && Boolean(analysisRecovery);
         setSlots((current) => {
+          if (restoringInitial) return current;
           if (!current.length) {
             const featured = selectFeaturedGames(result.games, settings.boardCount);
             const shared = share.game && result.games.some((game) => game.id === share.game) ? share.game : undefined;
@@ -187,6 +192,19 @@ export default function App() {
       document.removeEventListener('visibilitychange', onVisibility);
     };
   }, [view, statsSessionId, visibleGameIdsKey]);
+
+  const preparePanelAnalysis = (selectedIndex: number) => {
+    const snapshots = slots.map((slot, index): PanelSnapshot => {
+      const current = analysisSnapshots.current.get(index);
+      const snapshot = current?.summary.id === slot.id ? current : {
+        summary: games.find((game) => game.id === slot.id)!,
+        pinned: slot.pinned, ply: Number.MAX_SAFE_INTEGER, flipped: settings.orientation === 'white', enabled: loadAnalysisEnabled(slot.id),
+      };
+      return { ...snapshot, enabled: index === selectedIndex || snapshot.enabled };
+    });
+    return prepareAnalysis({ slots: snapshots, view, expanded });
+  };
+
   return (
     <div className={`app-shell${liveViewClass}`}>
       <a className="skip-link" href="#main">本文へ移動</a>
@@ -233,7 +251,7 @@ export default function App() {
               const summary = games.find((game) => game.id === slot.id);
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
-              return <GamePanel key={`${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={settings.playbackSeconds} initialPly={realIndex === 0 ? share.ply : undefined} defaultFlipped={settings.orientation === 'white'} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
+              return <GamePanel key={`${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={settings.playbackSeconds} initialPly={analysisRecovery?.slots[realIndex]?.summary.id === summary.id ? analysisRecovery.slots[realIndex].ply : realIndex === 0 ? share.ply : undefined} defaultFlipped={analysisRecovery?.slots[realIndex]?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={analysisRecovery?.slots[realIndex]?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={() => preparePanelAnalysis(realIndex)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
             })}
           </div>}
         </section>}

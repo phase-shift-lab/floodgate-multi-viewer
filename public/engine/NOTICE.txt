@@ -1,0 +1,24 @@
+Local analysis: つようら王11micro + YaneuraOu (WebAssembly)
+
+Evaluation parameters: nn.bin, progress.bin
+Author: やねうら王プロジェクト
+License: MIT, explicitly granted by the author at:
+https://yaneurao.fanbox.cc/posts/12761272
+https://yaneuraou.yaneu.com/2026/10/14/tsuyou-11-mini-micro-released-under-mit-license/
+Download: TuyouraOu11micro-SFNN_ka2_2048_8_64_progress8-epoch0010-20261001.7z
+Architecture: SFNN_ka2_2048_8_64_progress8; FV_SCALE=24
+See LICENSE-MIT-EVAL.txt. The parameters are redistributed without modification.
+
+Engine: yaneuraou.js, yaneuraou.wasm
+License: GNU GPL v3.0 (see LICENSE-GPL-3.0.txt)
+Upstream: https://github.com/yaneurao/YaneuraOu
+Upstream master checked: c1b80eaa09fe13d5f12b1599d1ae4d53c224de30 (2026-10-16)
+Corresponding source, local changes, and build instructions: source.zip (same directory).
+Built with Emscripten 4.0.23, architecture above, SIMD, pthreads, no embedded eval.
+Local changes: default engine Threads=1; pthread pool=1; disable STRICT/Closure.
+Threads is fixed by the build; avoid redundantly resizing it on browser startup.
+The engine runs behind a message boundary in a dedicated Web Worker.
+Evaluation and engine licenses are distinct from the viewer's MIT license.
+
+All analysis runs on the viewer's device. No analysis positions or results are uploaded.
+Asset SHA-256 hashes: SHA256SUMS.txt (same directory).
