@@ -430,6 +430,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .title-block p { display:none; }
   .legend { justify-content:flex-end; gap:.35rem .7rem; }
   .boards.count-2,.boards.count-4 { grid-template-columns:1fr; }
+  .board-stack { --board-piece-font-size:clamp(1rem,6.8cqw,1.65rem); }
   .players { grid-template-columns:1fr; }
   .players > div:first-child { border-right:0; border-bottom:1px solid var(--line); }
   .replay { grid-template-columns:repeat(5,auto); }

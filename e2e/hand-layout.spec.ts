@@ -66,9 +66,15 @@ test('持駒0・1・2・18枚と通常評価・詰み表示で盤面と操作欄
             badgeTop: badge?.top,
             badgeBottom: badge?.bottom,
             handBottom: handBox.bottom,
+            pieceFontSize: Number.parseFloat(getComputedStyle(panel.querySelector('.piece')!).fontSize),
+            handFontSize: Number.parseFloat(getComputedStyle(hand.querySelector('.hand-piece') ?? panel.querySelector('.piece')!).fontSize),
           };
         }, { count, flipped, heldPieces });
         if (!baseline) baseline = geometry;
+        if (layout.width === 390) {
+          expect(geometry.pieceFontSize).toBeGreaterThanOrEqual(20);
+          expect(geometry.handFontSize).toBe(geometry.pieceFontSize);
+        }
         for (const key of ['handHeight', 'boardTop', 'controlsTop', 'evaluationHeight'] as const) {
           expect(Math.abs(geometry[key] - baseline[key]), `${layout.width}px / ${layout.count}局 / 反転${flipped} / ${count}枚 / ${key}`).toBeLessThanOrEqual(1);
         }
