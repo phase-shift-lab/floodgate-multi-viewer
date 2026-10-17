@@ -47,6 +47,7 @@ export function GamePanel(props: Props) {
     ?? (props.initialPly === undefined || props.initialPly === Number.MAX_SAFE_INTEGER));
   const [flipped, setFlipped] = useState(props.defaultFlipped);
   const [movesOpen, setMovesOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(props.defaultSpeed);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
@@ -199,7 +200,8 @@ export function GamePanel(props: Props) {
 
       <div className="top-control-shelf">
         {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
-        <div className="panel-actions">
+        <button className="mobile-actions-toggle" aria-expanded={actionsOpen} aria-controls={`actions-${props.summary.id}`} onClick={() => setActionsOpen((open) => !open)}>操作</button>
+        <div id={`actions-${props.summary.id}`} className={`panel-actions${actionsOpen ? ' is-open' : ''}`}>
           <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
           <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
           <button aria-expanded={movesOpen} onClick={() => setMovesOpen((value) => !value)}>棋譜{movesOpen ? 'を閉じる' : 'を表示'}</button>

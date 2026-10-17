@@ -11,11 +11,17 @@ interface Slot { id: string; pinned: boolean }
 
 export default function App() {
   const share = useMemo(() => readShareState(), []);
-  const [settings, setSettings] = useState<ViewerSettings>(() => ({
-    ...loadSettings(),
-    ...(share.boards ? { boardCount: share.boards } : {}),
-    ...(share.orientation ? { orientation: share.orientation } : {}),
-  }));
+  const [settings, setSettings] = useState<ViewerSettings>(() => {
+    const saved = loadSettings();
+    return {
+      ...saved,
+      boardCount: matchMedia('(max-width: 767px)').matches && !analysisRecovery ? 1 : saved.boardCount,
+      ...(share.boards ? { boardCount: share.boards } : {}),
+      ...(share.orientation ? { orientation: share.orientation } : {}),
+    };
+  });
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [noticeOpen, setNoticeOpen] = useState(false);
   const [games, setGames] = useState<GameSummary[]>(() => analysisRecovery?.slots.map((slot) => slot.summary) ?? []);
   const [slots, setSlots] = useState<Slot[]>(() => analysisRecovery?.slots.map((slot) => ({ id: slot.summary.id, pinned: slot.pinned })) ?? []);
   const analysisSnapshots = useRef(new Map<number, PanelSnapshot>());
@@ -80,6 +86,7 @@ export default function App() {
   }, [settings]);
 
   const setBoardCount = (count: 1 | 2 | 4) => {
+    setMenuOpen(false);
     setSettings((value) => ({ ...value, boardCount: count }));
     setExpanded(undefined);
     setSlots((current) => {
@@ -210,20 +217,23 @@ export default function App() {
       <a className="skip-link" href="#main">本文へ移動</a>
       <header className="site-header">
         <div className="title-block"><span className="mark" aria-hidden="true">多</span><div><h1>Floodgate Multi Viewer</h1>{view === 'live' ? <div className="header-summary legend" aria-label="観戦情報"><strong><i className="live-dot" />注目対局</strong><span className={statsAvailable ? undefined : 'stats-status'}>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div> : <p>公開棋譜を静かに、見やすく。</p>}</div></div>
-        <nav aria-label="メインメニュー">
-          <button className={view === 'live' ? 'active' : ''} onClick={() => setView('live')}>ライブ</button>
-          <button className={view === 'archive' ? 'active' : ''} onClick={() => setView('archive')}>過去対局</button>
-        </nav>
-        <div className="header-actions">
-          <fieldset className="count-switch"><legend>表示局数</legend>{([1,2,4] as const).map((count) => <button key={count} aria-pressed={settings.boardCount === count} onClick={() => setBoardCount(count)}>{count}局</button>)}</fieldset>
-          <label className="theme-select">配色<select aria-label="配色" value={settings.theme} onChange={(event) => setSettings((value) => ({ ...value, theme: event.target.value as ViewerSettings['theme'] }))}><option value="system">端末設定</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
-          <a className="header-source-link" aria-label="Floodgate 公開情報" href="https://wdoor.c.u-tokyo.ac.jp/shogi/" target="_blank" rel="noreferrer">出典</a>
-          <label className="auto-switch"><input type="checkbox" checked={settings.autoSwitchFinished} onChange={(event) => setSettings((value) => ({ ...value, autoSwitchFinished: event.target.checked }))} />終局後に注目局へ切替</label>
+        <button className="mobile-menu-toggle" aria-expanded={menuOpen} aria-controls="header-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? '閉じる' : 'メニュー'}</button>
+        <div id="header-menu" className={`header-menu${menuOpen ? ' is-open' : ''}`}>
+          <nav aria-label="メインメニュー">
+            <button className={view === 'live' ? 'active' : ''} onClick={() => { setView('live'); setMenuOpen(false); }}>ライブ</button>
+            <button className={view === 'archive' ? 'active' : ''} onClick={() => { setView('archive'); setMenuOpen(false); }}>過去対局</button>
+          </nav>
+          <div className="header-actions">
+            <fieldset className="count-switch"><legend>表示局数</legend>{([1,2,4] as const).map((count) => <button key={count} aria-pressed={settings.boardCount === count} onClick={() => setBoardCount(count)}>{count}局</button>)}</fieldset>
+            <label className="theme-select">配色<select aria-label="配色" value={settings.theme} onChange={(event) => setSettings((value) => ({ ...value, theme: event.target.value as ViewerSettings['theme'] }))}><option value="system">端末設定</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
+            <a className="header-source-link" aria-label="Floodgate 公開情報" href="https://wdoor.c.u-tokyo.ac.jp/shogi/" target="_blank" rel="noreferrer">出典</a>
+            <label className="auto-switch"><input type="checkbox" checked={settings.autoSwitchFinished} onChange={(event) => setSettings((value) => ({ ...value, autoSwitchFinished: event.target.checked }))} />終局後に注目局へ切替</label>
+          </div>
         </div>
       </header>
 
       <main id="main" className={liveMainClass}>
-        {status === 'fixture' && <div className="notice warning" role="status"><strong>静的fixtureで表示中</strong><span>LIVE中継に接続できないため、同梱データを表示しています。ライブ更新と統計は停止中です。</span></div>}
+        {status === 'fixture' && <div className={`notice warning${noticeOpen ? ' is-open' : ''}`} role="status"><strong>静的fixtureで表示中</strong><button className="mobile-notice-toggle" aria-expanded={noticeOpen} aria-controls="fixture-notice" onClick={() => setNoticeOpen((open) => !open)}>{noticeOpen ? '閉じる' : '詳細'}</button><span id="fixture-notice">LIVE中継に接続できないため、同梱データを表示しています。ライブ更新と統計は停止中です。</span></div>}
         {status === 'error' && <div className="notice error" role="alert">対局情報を取得できませんでした。しばらくしてから再読み込みしてください。</div>}
         {status === 'empty' && <div className="empty-state">表示できる対局がありません。</div>}
 

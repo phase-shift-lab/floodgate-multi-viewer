@@ -340,6 +340,68 @@ test('1024x768では4局を2x2でスクロールせず表示する', async ({ pa
   expect(verticalOverflow).toBeLessThanOrEqual(1);
 });
 
+test('スマホは保存済み局数があっても1局で開き、主要操作まで画面内に収まる', async ({ page }) => {
+  await page.setViewportSize({ width: 393, height: 700 });
+  await page.evaluate(() => {
+    const settings = JSON.parse(localStorage.getItem('fgmv:settings:v1')!);
+    localStorage.setItem('fgmv:settings:v1', JSON.stringify({ ...settings, boardCount: 4 }));
+  });
+  await page.reload();
+  const panels = page.getByTestId('boards').locator('.game-panel');
+  await expect(panels).toHaveCount(1);
+  await expect(panels.locator('.evaluation-status')).toHaveText('解析完了', { timeout: 45_000 });
+  for (const viewport of [
+    { width: 393, height: 852 }, { width: 393, height: 700 },
+    { width: 393, height: 660 }, { width: 375, height: 667 }, { width: 430, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect.poll(() => panels.evaluate((panel) => panel.getBoundingClientRect().bottom)).toBeLessThanOrEqual(viewport.height);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+    const geometry = await panels.evaluate((panel) => ({
+      font: Number.parseFloat(getComputedStyle(panel.querySelector('.piece')!).fontSize),
+      board: panel.querySelector('.shogi-board')!.getBoundingClientRect().width,
+    }));
+    expect(geometry.font).toBeGreaterThanOrEqual(17);
+    expect(geometry.board).toBeGreaterThanOrEqual(260);
+  }
+  await page.getByRole('button', { name: 'メニュー', exact: true }).click();
+  await expect(page.getByLabel('配色')).toBeVisible();
+  await page.getByRole('button', { name: '2局' }).click();
+  await expect(panels).toHaveCount(2);
+  await page.reload();
+  await expect(panels).toHaveCount(1);
+  await panels.getByRole('button', { name: '操作', exact: true }).click();
+  await panels.getByRole('button', { name: '盤面反転', exact: true }).click();
+  await expect(panels.locator('.hand.back')).toHaveAttribute('aria-label', '先手の持駒');
+  await panels.getByRole('button', { name: '棋譜を表示' }).click();
+  await expect(panels.getByRole('list', { name: '棋譜', exact: true })).toBeVisible();
+  await page.goto(`${basePath}?boards=2`);
+  await expect(panels).toHaveCount(2);
+});
+
+test('スマホで解析を準備する再読み込みでは選択した2局を復元する', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 393, height: 700 } });
+  try {
+    // Start without a Service Worker so this tests the initial setup reload.
+    await context.addInitScript(() => {
+      if (!localStorage.getItem('fgmv:analysis:v1')) localStorage.setItem('fgmv:analysis:v1', JSON.stringify({ disabled: true }));
+    });
+    const page = await context.newPage();
+    await page.goto(basePath);
+    const panels = page.getByTestId('boards').locator('.game-panel');
+    await expect(panels.first().locator('.evaluation-status')).toHaveText('解析OFF');
+    await page.getByRole('button', { name: 'メニュー', exact: true }).click();
+    await page.getByRole('button', { name: '2局' }).click();
+    await expect(panels).toHaveCount(2);
+    await panels.first().locator('.analysis-lines summary').click();
+    await panels.first().getByRole('button', { name: '端末で解析 OFF', exact: true }).click();
+    await expect(panels.first().locator('.evaluation-status')).toHaveText('解析完了', { timeout: 45_000 });
+    await expect(panels).toHaveCount(2);
+    await page.reload();
+    await expect(panels).toHaveCount(1);
+  } finally { await context.close(); }
+});
+
 test('390x844では既定1局、2・4局選択時も縦一列で横にはみ出さない', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   // Initial automatic setup reloads once and saves desktop settings; test a fresh mobile default.
@@ -348,11 +410,13 @@ test('390x844では既定1局、2・4局選択時も縦一列で横にはみ出�
   const panels = page.getByTestId('boards').locator('.game-panel');
   await expect(panels).toHaveCount(1);
 
+  await page.getByRole('button', { name: 'メニュー', exact: true }).click();
   await page.getByRole('button', { name: '2局' }).click();
   await expect(panels).toHaveCount(2);
   const twoPanelTops = await panels.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().top));
   expect(twoPanelTops[1]).toBeGreaterThan(twoPanelTops[0]);
 
+  await page.getByRole('button', { name: 'メニュー', exact: true }).click();
   await page.getByRole('button', { name: '4局' }).click();
   await expect(panels).toHaveCount(4);
   const fourPanelTops = await panels.evaluateAll((items) => items.map((item) => item.getBoundingClientRect().top));
