@@ -309,6 +309,8 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
     expect(boardWidth).toBeGreaterThanOrEqual(viewport.minimumBoard);
     const panelBottom = await panel.evaluate((item) => item.getBoundingClientRect().bottom);
     expect(panelBottom).toBeLessThanOrEqual(viewport.height);
+    const connectionBottom = await panel.locator('.connection').evaluate((item) => item.getBoundingClientRect().bottom);
+    expect(connectionBottom).toBeLessThanOrEqual(viewport.height);
     const verticalOverflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
     expect(verticalOverflow).toBeLessThanOrEqual(1);
 
