@@ -1,7 +1,7 @@
 import type { GameSummary } from '../domain/types';
 import { disableAutomaticAnalysis } from '../data/analysisPreferences';
 
-export interface PanelSnapshot { summary: GameSummary; pinned: boolean; ply: number; flipped: boolean; enabled: boolean }
+export interface PanelSnapshot { summary: GameSummary; pinned: boolean; ply: number; flipped: boolean; enabled: boolean; followingLatest?: boolean }
 export interface AnalysisRecovery { slots: PanelSnapshot[]; view: 'live' | 'archive'; expanded?: number; at: number }
 const KEY = 'fgmv:analysis-reload:v1';
 
@@ -13,7 +13,8 @@ function readRecovery(): AnalysisRecovery | undefined {
     const value = JSON.parse(raw) as AnalysisRecovery;
     const age = Date.now() - value.at;
     if (!Number.isFinite(value.at) || age < 0 || age > 120_000 || !Array.isArray(value.slots) || value.slots.length > 4) return;
-    if (!value.slots.every((slot) => typeof slot.summary?.id === 'string' && Number.isFinite(slot.ply))) return;
+    if (!value.slots.every((slot) => typeof slot.summary?.id === 'string' && Number.isFinite(slot.ply)
+      && (slot.followingLatest === undefined || typeof slot.followingLatest === 'boolean'))) return;
     return value;
   } catch { return; }
 }

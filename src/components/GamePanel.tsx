@@ -20,6 +20,7 @@ interface Props {
   games: GameSummary[];
   defaultSpeed: number;
   initialPly?: number;
+  initialFollowingLatest?: boolean;
   defaultFlipped: boolean;
   pinned: boolean;
   favoriteNames: string[];
@@ -42,6 +43,8 @@ export function GamePanel(props: Props) {
   const onViewed = props.onViewed;
   const [game, setGame] = useState<ParsedGame>();
   const [ply, setPly] = useState(props.initialPly ?? Number.MAX_SAFE_INTEGER);
+  const [followingLatest, setFollowingLatest] = useState(() => props.initialFollowingLatest
+    ?? (props.initialPly === undefined || props.initialPly === Number.MAX_SAFE_INTEGER));
   const [flipped, setFlipped] = useState(props.defaultFlipped);
   const [movesOpen, setMovesOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -54,9 +57,13 @@ export function GamePanel(props: Props) {
   const changeAnalysisEnabled = (enabled: boolean) => { saveAnalysisEnabled(props.summary.id, enabled); setAnalysisEnabled(enabled); };
   const failures = useRef(0);
   const lastPly = useRef(ply);
-  const followingRef = useRef(true);
+  const followingRef = useRef(followingLatest);
   const gameLengthRef = useRef(0);
   const currentMoveRef = useRef<HTMLButtonElement | null>(null);
+  const changeFollowing = useCallback((following: boolean) => {
+    followingRef.current = following;
+    setFollowingLatest(following);
+  }, []);
 
   useEffect(() => {
     onViewed(props.summary.id);
@@ -69,10 +76,10 @@ export function GamePanel(props: Props) {
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
-    followingRef.current = props.initialPly === undefined;
     const poll = async () => {
       try {
         const result = await loadGame(props.summary, controller.signal);
+        if (controller.signal.aborted) return;
         const failureCount = result.fixture ? failures.current + 1 : 0;
         failures.current = failureCount;
         const nextLength = result.game.moveList.length;
@@ -94,7 +101,7 @@ export function GamePanel(props: Props) {
     };
     void poll();
     return () => { controller.abort(); if (timeout) clearTimeout(timeout); };
-  }, [props.summary, props.initialPly]);
+  }, [props.summary]);
 
   const maxPly = game?.moveList.length ?? 0;
   const safePly = Math.min(ply, maxPly);
@@ -102,8 +109,8 @@ export function GamePanel(props: Props) {
   const enginePosition = useMemo(() => game ? toEnginePosition(game, safePly) : '', [game, safePly]);
   const onAnalysisSnapshot = props.onAnalysisSnapshot;
   useEffect(() => {
-    onAnalysisSnapshot?.({ summary: props.summary, pinned: props.pinned, ply: game ? safePly : ply, flipped, enabled: analysisEnabled });
-  }, [onAnalysisSnapshot, props.summary, props.pinned, safePly, ply, game, flipped, analysisEnabled]);
+    onAnalysisSnapshot?.({ summary: props.summary, pinned: props.pinned, ply: game ? safePly : ply, flipped, enabled: analysisEnabled, followingLatest });
+  }, [onAnalysisSnapshot, props.summary, props.pinned, safePly, ply, game, flipped, analysisEnabled, followingLatest]);
   const moveLabels = useMemo(() => game ? game.moveList.map((move) => ({
     move,
     label: formatMoveInGame(game, move.index),
@@ -114,27 +121,27 @@ export function GamePanel(props: Props) {
   useEffect(() => {
     if (!playing || !game) return;
     if (safePly >= maxPly) return;
-    const timer = setTimeout(() => setPly((value) => {
-      const next = nextPlaybackPly(value, maxPly);
+    const timer = setTimeout(() => {
+      const next = nextPlaybackPly(lastPly.current, maxPly);
       lastPly.current = next;
-      followingRef.current = next >= maxPly;
+      setPly(next);
+      changeFollowing(next >= maxPly);
       if (next >= maxPly) {
         setPlaying(false);
         setNewMoves(false);
       }
-      return next;
-    }), playbackDelayMs(speed));
+    }, playbackDelayMs(speed));
     return () => clearTimeout(timer);
-  }, [playing, game, safePly, maxPly, speed]);
+  }, [playing, game, safePly, maxPly, speed, changeFollowing]);
 
   const moveTo = useCallback((next: number, keepPlaying = false) => {
     const clamped = Math.max(0, Math.min(maxPly, next));
     if (!keepPlaying) setPlaying(false);
     setPly(clamped);
     lastPly.current = clamped;
-    followingRef.current = clamped >= maxPly;
+    changeFollowing(clamped >= maxPly);
     if (clamped >= maxPly) setNewMoves(false);
-  }, [maxPly]);
+  }, [maxPly, changeFollowing]);
 
   useEffect(() => {
     if (!movesOpen) return;
