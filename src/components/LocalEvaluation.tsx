@@ -44,7 +44,7 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
   return <section className={`local-evaluation ${!enabled ? 'is-off' : ''}`} aria-label="AI局面解説" style={{ '--black-share': `${advantageScale(score)}%` } as CSSProperties}>
     <div className="evaluation-head">
       <span className="evaluation-leader">{leader}</span>
-      <output className="evaluation-number" aria-label="先手基準の評価値" aria-live="polite">{score ? scoreLabel(score) : '—'}</output>
+      <output className="evaluation-number" data-kind={score?.kind} aria-label="先手基準の評価値" aria-live="polite">{score ? <>{scoreLabel({ ...score, bound: undefined })}{score.bound && <small>{score.bound === 'lowerbound' ? '以上' : '以下'}</small>}</> : '—'}</output>
       <span className="evaluation-status">{!enabled ? '解析OFF' : preparing ? '準備中' : label || '解析待ち'}</span>
     </div>
     <div className="advantage-meter" role="img" aria-label={score ? `先手基準の形勢ゲージ ${scoreLabel(score)}。勝率ではありません。` : '形勢未評価'}><span /></div>

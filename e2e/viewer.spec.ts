@@ -57,6 +57,27 @@ test('端末解析の評価値・日本語読み筋を表示し、OFF設定を�
   await expect(popover).toBeVisible();
   await expect(popover.locator('li').first()).toContainText('第1候補');
   await expect(popover.locator('li p').first()).toHaveText(/^[▲△]/);
+  const typography = await panel.evaluate((element) => {
+    const style = (selector: string) => getComputedStyle(element.querySelector(selector)!);
+    return {
+      number: Number.parseFloat(style('.evaluation-number').fontSize),
+      numberFamily: style('.evaluation-number').fontFamily,
+      leader: Number.parseFloat(style('.evaluation-leader').fontSize),
+      candidate: Number.parseFloat(style('.first-candidate strong').fontSize),
+      variation: Number.parseFloat(style('.analysis-popover li p').fontSize),
+      player: Number.parseFloat(style('.players strong').fontSize),
+    };
+  });
+  expect(typography.number).toBeGreaterThanOrEqual(26);
+  expect(typography.numberFamily).toContain('Segoe UI');
+  expect(typography.leader).toBeGreaterThanOrEqual(12);
+  expect(typography.candidate).toBeGreaterThanOrEqual(14);
+  expect(typography.variation).toBeGreaterThanOrEqual(16);
+  expect(typography.player).toBeGreaterThanOrEqual(14);
+  await expect(page.locator('.site-header .header-summary')).toContainText('注目対局');
+  await expect(page.locator('.evaluation-status')).toHaveText(Array<string>(4).fill('解析完了'));
+  await page.setViewportSize({ width: 1920, height: 900 });
+  await page.screenshot({ path: test.info().outputPath('readability.png') });
   const box = await popover.boundingBox();
   expect(box).not.toBeNull();
   expect(box!.x).toBeGreaterThanOrEqual(0);

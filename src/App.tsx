@@ -209,7 +209,7 @@ export default function App() {
     <div className={`app-shell${liveViewClass}`}>
       <a className="skip-link" href="#main">本文へ移動</a>
       <header className="site-header">
-        <div className="title-block"><span className="mark" aria-hidden="true">多</span><div><h1>Floodgate Multi Viewer</h1><p>公開棋譜を静かに、見やすく。</p></div></div>
+        <div className="title-block"><span className="mark" aria-hidden="true">多</span><div><h1>Floodgate Multi Viewer</h1>{view === 'live' ? <div className="header-summary legend" aria-label="観戦情報"><strong><i className="live-dot" />注目対局</strong><span className={statsAvailable ? undefined : 'stats-status'}>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div> : <p>公開棋譜を静かに、見やすく。</p>}</div></div>
         <nav aria-label="メインメニュー">
           <button className={view === 'live' ? 'active' : ''} onClick={() => setView('live')}>ライブ</button>
           <button className={view === 'archive' ? 'active' : ''} onClick={() => setView('archive')}>過去対局</button>
@@ -245,7 +245,6 @@ export default function App() {
         </section>}
 
         {view === 'live' && <section className="live-section" aria-label="対局盤面">
-          <div className="board-section-head"><div><span className="eyebrow">WATCH NOW</span><h2>注目対局</h2></div><div className="legend"><span><i className="live-dot" />ライブ</span><span className={statsAvailable ? undefined : 'stats-status'}>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div></div>
           {status === 'loading' ? <div className="board-skeleton" role="status">注目対局を選んでいます…</div> : <div className={`boards count-${visibleSlots.length}`} data-testid="boards">
             {visibleSlots.map((slot, index) => {
               const summary = games.find((game) => game.id === slot.id);
