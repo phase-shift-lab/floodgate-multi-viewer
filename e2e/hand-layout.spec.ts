@@ -1,5 +1,58 @@
 import { expect, test } from '@playwright/test';
 
+test('スマホの空段が多い局面でも81マスを均等に保つ', async ({ page }) => {
+  await page.goto('/floodgate-multi-viewer/');
+  await expect(page.locator('.evaluation-status').first()).toHaveText('解析完了', { timeout: 45_000 });
+  const styles = await page.locator('link[rel="stylesheet"]').evaluateAll((links) =>
+    links.map((link) => `<link rel="stylesheet" href="${(link as HTMLLinkElement).href}">`).join(''),
+  );
+  const board = await page.locator('.board-wrap').first().evaluate((element) => element.outerHTML);
+  for (const viewport of [
+    { width: 393, height: 700 }, { width: 393, height: 660 },
+    { width: 320, height: 568 }, { width: 430, height: 740 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.setContent(`${styles}<div class="app-shell single-board-view"><main><div class="game-panel">${board}</div></main></div>`);
+    for (const flipped of [false, true]) {
+      for (const pattern of ['outer-rows', 'two-kings', 'middle-row', 'full', 'empty']) {
+        const geometry = await page.locator('.shogi-board').evaluate((element, { flipped, pattern }) => {
+          const cells = [...element.querySelectorAll('.square')];
+          cells.forEach((cell, index) => {
+            cell.replaceChildren();
+            const occupied = pattern === 'full' || (pattern === 'outer-rows' && (index < 9 || index >= 72))
+              || (pattern === 'two-kings' && (index === 4 || index === 76)) || (pattern === 'middle-row' && index >= 36 && index < 45);
+            if (occupied) {
+              const piece = document.createElement('span');
+              piece.className = `piece${flipped ? ' upside' : ''}`;
+              piece.textContent = index % 2 ? '龍' : '玉';
+              cell.append(piece);
+            }
+          });
+          const boardBox = element.getBoundingClientRect();
+          return {
+            width: boardBox.width, height: boardBox.height,
+            cells: cells.map((cell) => {
+              const box = cell.getBoundingClientRect();
+              const piece = cell.querySelector('.piece')?.getBoundingClientRect();
+              return { width: box.width, height: box.height, pieceWidth: piece?.width, pieceHeight: piece?.height };
+            }),
+          };
+        }, { flipped, pattern });
+        expect(Math.abs(geometry.width - geometry.height), `${viewport.width}px / ${pattern}`).toBeLessThanOrEqual(1);
+        expect(geometry.cells).toHaveLength(81);
+        for (const cell of geometry.cells) {
+          expect(Math.abs(cell.width - cell.height)).toBeLessThanOrEqual(1);
+          expect(Math.abs(cell.height - geometry.cells[0].height)).toBeLessThanOrEqual(1);
+          if (cell.pieceWidth !== undefined) {
+            expect(cell.pieceWidth).toBeLessThanOrEqual(cell.width);
+            expect(cell.pieceHeight!).toBeLessThanOrEqual(cell.height);
+          }
+        }
+      }
+    }
+  }
+});
+
 test('持駒0・1・2・18枚と通常評価・詰み表示で盤面と操作欄がずれない', async ({ page }) => {
   await page.goto('/floodgate-multi-viewer/');
   await expect(page.locator('.evaluation-status').first()).toHaveText('解析完了', { timeout: 45_000 });

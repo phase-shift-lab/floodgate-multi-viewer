@@ -97,8 +97,8 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
 .new-moves button { padding:.25rem .45rem; background:white; color:#25527a; }
 .board-wrap { padding:.5rem clamp(.5rem,2vw,1rem); background:linear-gradient(135deg,color-mix(in srgb,var(--paper-2),var(--board) 8%),var(--paper-2)); }
 .board-stack { width:min(100%,460px); margin:auto; container-type:inline-size; --board-piece-width:calc(78cqw / 9); --board-piece-font-size:clamp(.64rem,1.65vw,1.2rem); --board-piece-height:max(calc(86cqw / 9),calc(var(--board-piece-font-size) * 1.375)); --hand-count-font-size:clamp(.82rem,calc(var(--board-piece-font-size) * .92),1.08rem); --hand-count-overhang:calc(var(--hand-count-font-size) + 2px + .08rem); }
-.shogi-board { display:grid; grid-template-columns:repeat(9,1fr); width:100%; aspect-ratio:1; margin:auto; border:2px solid var(--board-line); background:var(--board); box-shadow:0 5px 14px rgb(57 41 20 / 18%); }
-.square { display:grid; place-items:center; min-width:0; border-right:1px solid var(--board-line); border-bottom:1px solid var(--board-line); position:relative; }
+.shogi-board { display:grid; grid-template-columns:repeat(9,minmax(0,1fr)); grid-template-rows:repeat(9,minmax(0,1fr)); width:100%; aspect-ratio:1; margin:auto; border:2px solid var(--board-line); background:var(--board); box-shadow:0 5px 14px rgb(57 41 20 / 18%); }
+.square { display:grid; place-items:center; min-width:0; min-height:0; border-right:1px solid var(--board-line); border-bottom:1px solid var(--board-line); position:relative; }
 .square:nth-child(9n) { border-right:0; }
 .square:nth-last-child(-n+9) { border-bottom:0; }
 .square.last-from { background:color-mix(in srgb,var(--move-origin),transparent 79%); }
@@ -358,7 +358,7 @@ h2 { font:700 1.45rem/1.2 'Noto Serif JP',serif; }
   .boards.count-4 .new-moves { padding:.2rem; font-size:.62rem; }
   .boards.count-4 .board-wrap { padding:.15rem .3rem; }
   .boards.count-4 .board-stack { width:min(100%,var(--four-board-size)); --hand-count-font-size:clamp(.64rem,calc(var(--board-piece-font-size) * .86),.86rem); }
-  .boards.count-4 .shogi-board { grid-template-rows:repeat(9,minmax(0,1fr)); overflow:hidden; }
+  .boards.count-4 .shogi-board { overflow:hidden; }
   .boards.count-4 .hand { line-height:1; margin-block:.08rem; font-size:.58rem; }
   .boards.count-4 .hand-pieces { gap:.2rem; }
   .boards.count-4 .hand-piece { filter:none; }
