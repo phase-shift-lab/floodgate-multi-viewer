@@ -825,5 +825,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .app-shell .boards .unified-panel .board-controls .replay-status { grid-column:1/-1; grid-row:2; justify-self:end; align-self:center; line-height:1.1; max-width:70px; white-space:nowrap; }
 @media(max-width:767px) { .app-shell .unified-panel .local-evaluation { min-height:68px; } }
 /* Account for the selector's bottom border in both watch and study states. */
+.unified-panel .analysis-error { position:relative; z-index:2; }
+.unified-panel .analysis-error button { min-height:44px; margin-left:.4rem; font-size:.75rem; }
 .app-shell .boards .unified-panel .unified-caption { min-height:33px; }
 @media(max-width:767px) { .app-shell .boards .unified-panel .unified-caption { min-height:45px; } }

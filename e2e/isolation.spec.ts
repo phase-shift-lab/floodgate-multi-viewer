@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 
 test('共有メモリ用ヘッダーで解析でき、CORS通信と再読み込み回数を維持する', async ({ page }) => {
   let navigations = 0;
-  page.on('framenavigated', (frame) => { if (frame === page.mainFrame()) navigations++; });
+  page.on('request', request => { if (request.isNavigationRequest() && request.resourceType() === 'document') navigations++; });
   await page.goto('/floodgate-multi-viewer/');
   await expect(page.locator('.evaluation-status').first()).toHaveText('解析完了', { timeout: 45_000 });
   expect(await page.evaluate(() => crossOriginIsolated)).toBe(true);

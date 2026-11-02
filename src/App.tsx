@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { analysisRecovery, preparationRecovery, prepareAnalysis, type PanelSnapshot } from './engine/isolation';
 import type { ReturnToSource } from './components/StudyView';
 import { createStudy, persistStudy, restoreStudy, savedStudyExists, type StudySession, type WatchSnapshot } from './domain/studySession';
@@ -66,6 +66,8 @@ export default function App() {
   const [minRate, setMinRate] = useState('');
   const [maxRate, setMaxRate] = useState('');
   const [sort, setSort] = useState<'new' | 'high' | 'low'>('new');
+  const analysisContext=useRef({slots,games,view,expanded,settings});
+  useLayoutEffect(()=>{analysisContext.current={slots,games,view,expanded,settings};},[slots,games,view,expanded,settings]);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [viewerStats, setViewerStats] = useState<ViewerStats>();
   const [statsChecked, setStatsChecked] = useState(false);
@@ -304,15 +306,18 @@ export default function App() {
   };
 
   const preparePanelAnalysis = (selectedIndex: number, signal?: AbortSignal) => {
-    const snapshots = slots.map((slot, index): PanelSnapshot => {
-      const current = analysisSnapshots.current.get(index);
-      const snapshot = current?.summary.id === slot.id ? current : {
-        summary: games.find((game) => game.id === slot.id)!,
-        pinned: slot.pinned, ply: Number.MAX_SAFE_INTEGER, flipped: settings.orientation === 'white', enabled: loadAnalysisEnabled(slot.id), followingLatest: true,
-      };
-      return { ...snapshot, enabled: index === selectedIndex || snapshot.enabled };
-    });
-    return prepareAnalysis({ slots: snapshots, view, expanded, settings },undefined,signal);
+    return prepareAnalysis(() => {
+      const {slots,games,view,expanded,settings}=analysisContext.current;
+      const snapshots = slots.map((slot, index): PanelSnapshot => {
+        const current = analysisSnapshots.current.get(index);
+        const snapshot = current?.summary.id === slot.id ? current : {
+          summary: games.find((game) => game.id === slot.id)!,
+          pinned: slot.pinned, ply: Number.MAX_SAFE_INTEGER, flipped: settings.orientation === 'white', enabled: loadAnalysisEnabled(slot.id), followingLatest: true,
+        };
+        return { ...snapshot, enabled: index === selectedIndex || snapshot.enabled };
+      });
+      return { slots: snapshots, view, expanded, settings };
+    },undefined,signal);
   };
 
   const changeView = (next: 'live' | 'archive') => {

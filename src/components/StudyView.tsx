@@ -3,7 +3,7 @@ import { BoardSurface, BoardControls } from './BoardSurface';
 import { MoveList } from './MoveList';
 import { loadGame } from '../data/client';
 import { shareUrl } from '../data/preferences';
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { formatMove } from '../domain/csa';
 import { legalMoves } from '../domain/studyRules';
 import { addStudyMove, branchNodes, navigateStudy, persistStudy, STUDY_TIMES, studyPosition, type StudySeconds, type StudySession } from '../domain/studySession';
@@ -17,6 +17,8 @@ import { ShogiBoard } from './ShogiBoard';
 export interface ReturnToSource { ply?: number; game?: ParsedGame }
 interface Props { session: StudySession; onChange: (s: StudySession) => void; onReturn: (target?: ReturnToSource) => Promise<void>; sound: boolean; onSound: () => void; context?: ReactNode; settingsRequest?: number }
 export function StudyView({ session, onChange, onReturn, sound, onSound, context, settingsRequest }: Props) {
+  const latestSession=useRef(session);
+  useLayoutEffect(()=>{latestSession.current=session;},[session]);
   const [dialogOpen,setDialogOpen] = useState(false);
   const [detailTab,setDetailTab] = useState<DetailTab>('record');
   const [recordTab,setRecordTab] = useState<'source'|'branches'>('branches');
@@ -86,7 +88,10 @@ export function StudyView({ session, onChange, onReturn, sound, onSound, context
     else add(options[0]);
   };
   const navigate = (id: string) => { if (commit(navigateStudy(session,id))) { cancelSelection(); setRequestId(0); } };
-  const prepare = useCallback(async (signal?: AbortSignal) => { persistStudy(session); return prepareAnalysis(session.watch,session.id,signal); },[session]);
+  const prepare = useCallback(async (signal?: AbortSignal) => {
+    persistStudy(latestSession.current);
+    return prepareAnalysis(() => { const current=latestSession.current; persistStudy(current); return current.watch; },session.id,signal);
+  },[session.id]);
   const retry = () => {
     if (!commit({...session,enabled:true,stopped:false})) return;
     retryAnalysisPreparation(); localAnalysis.retry(); setRequestId((id) => id+1);
@@ -112,7 +117,7 @@ export function StudyView({ session, onChange, onReturn, sound, onSound, context
     void navigator.clipboard.writeText(url).then(()=>setMessage('元対局のURLをコピーしました。変化は含みません。')).catch(()=>setMessage(url));
   };
   return <BoardSurface studying label="検討盤" context={context ?? <div className="players study-player-fallback"><strong>▲ {session.game.black} △ {session.game.white}</strong><button onClick={share}>共有</button></div>}
-    caption={<strong className="study-badge">検討中 · 変化{path.length}手</strong>}
+    caption={<strong className="study-badge">検討中</strong>}
     evaluation={<LocalEvaluation board={board} position={position} enabled={session.enabled} onEnabledChange={enabled => commit({...session,enabled,stopped:false})} onPrepare={prepare} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} study milliseconds={session.seconds*1000 as 1000|3000|5000|10000} requestId={requestId} stopped={session.stopped || Boolean(terminal) || leaving} />}
     board={<ShogiBoard state={board} flipped={session.flipped} lastMove={node.move ?? session.game.moveList.at(-1)} selected={selected} legalTargets={targets} locked={Boolean(promotion) || leaving || Boolean(terminal)} onSquare={selectSquare} onHand={(side,code) => { if (side === board.turn && !promotion) { setSelected(selected === 'hand:'+code ? undefined : 'hand:'+code); setMessage(''); } }} />}
     status={<><span>{terminal ?? (promotion ? '成る・成らないを選んでください' : selected ? '移動可能な升 '+targets.length+'か所' : '手番側の駒・持駒を選んでください')}</span>{selected && !promotion && <button onClick={cancelSelection}>選択取消</button>}{newCount > 0 && <strong className="study-new-moves">本譜に新着{newCount}手</strong>}{liveMessage && <small>{liveMessage}</small>}</>}

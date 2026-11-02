@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { advantageScale, formatPrincipalVariation, scoreLabel } from '../domain/localEvaluation';
 import type { BoardState } from '../domain/types';
 import { hasAnalysisSetup, removeAnalysisSetup, retryAnalysisPreparation } from '../engine/isolation';
@@ -14,38 +14,39 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
   const [preparing, setPreparing] = useState(false);
   const [removing,setRemoving] = useState(false);
   const [error, setError] = useState('');
-  const attemptedSetup = useRef(false);
+  const [cancelledError,setCancelledError] = useState(false);
+  const [retrySequence,setRetrySequence] = useState(0);
   const prepareRef = useRef(onPrepare);
-  useEffect(() => { prepareRef.current = onPrepare; }, [onPrepare]);
-  const resultKey = `${position}|${milliseconds}|${requestId}`;
+  useLayoutEffect(() => { prepareRef.current = onPrepare; }, [onPrepare]);
+  const resultKey = `${position}|${milliseconds}|${requestId}|${retrySequence}`;
   const state = result?.position === resultKey ? result.state : undefined;
   useEffect(() => {
-    if (!enabled || stopped || suspended) return;
-    let current = true;
-    queueMicrotask(() => { if (current) setError(''); });
-    if (!globalThis.crossOriginIsolated) {
-      if (attemptedSetup.current) return;
-      attemptedSetup.current = true;
-      const controller = new AbortController();
-      let cancelled = false;
-      void Promise.resolve().then(() => {
-        if (cancelled) return;
-        setPreparing(true);
-        return prepareRef.current(controller.signal);
-      }).catch((error) => { if (!cancelled) setError(error instanceof Error ? error.message : String(error)); })
-        .finally(() => { if (!cancelled) setPreparing(false); });
-      return () => { current = false; cancelled = true; controller.abort(); attemptedSetup.current = false; };
-    }
-    const cancel = localAnalysis.request(key, position, board.turn, (state) => setResult({ position:resultKey, state }), { milliseconds, bypassCache:requestId > 0 });
-    return () => { current = false; cancel(); };
-  }, [key, enabled, position, board.turn, resultKey, milliseconds, requestId, stopped, suspended]);
+    if (!enabled || stopped || suspended || globalThis.crossOriginIsolated) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setPreparing(true); setError(''); setCancelledError(false);
+      return prepareRef.current(controller.signal);
+    }).catch((error) => { if (!cancelled) { setError(error instanceof Error ? error.message : String(error)); setCancelledError(error?.name === 'AbortError'); } })
+      .finally(() => { if (!cancelled) setPreparing(false); });
+    return () => { cancelled = true; controller.abort(); };
+  }, [enabled, stopped, suspended, requestId, retrySequence]);
+  useEffect(() => {
+    if (!enabled || stopped || suspended || !globalThis.crossOriginIsolated) return;
+    const cancel = localAnalysis.request(key, position, board.turn, (state) => setResult({ position:resultKey, state }), { milliseconds, bypassCache:requestId > 0 || retrySequence > 0 });
+    return cancel;
+  }, [key, enabled, position, board.turn, resultKey, milliseconds, requestId, retrySequence, stopped, suspended]);
 
   const toggle = () => {
     if (enabled) { onEnabledChange(false); setResult(undefined); return; }
-    setError('');
-    attemptedSetup.current = false;
-    retryAnalysisPreparation(); localAnalysis.retry();
+    retry();
     onEnabledChange(true);
+  };
+  const retry = () => {
+    setError(''); setCancelledError(false); setResult(undefined);
+    retryAnalysisPreparation(); localAnalysis.retry();
+    setRetrySequence(value => value+1);
   };
   const phase = state?.phase;
   const label = phase ? { loading: '読み込み中…', queued: '解析待ち', running: '解析中', done: '解析完了', paused: '非表示のため停止中', error: '解析停止' }[phase] : '';
@@ -66,12 +67,12 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
     <div className="evaluation-head">
       <span className="evaluation-leader">{leader}</span>
       <output className="evaluation-number" data-kind={score?.kind} aria-label="先手基準の評価値" aria-live="polite">{score ? <>{scoreLabel({ ...score, bound: undefined })}{score.bound && <small>{score.bound === 'lowerbound' ? '以上' : '以下'}</small>}</> : '—'}</output>
-      <span className="evaluation-status">{!enabled ? '解析OFF' : stopped ? '停止中' : preparing ? '準備中' : label || '解析待ち'}</span>
+      <span className="evaluation-status">{!enabled ? '解析OFF' : stopped ? '停止中' : error ? cancelledError ? '準備中断' : '解析停止' : preparing ? '準備中' : label || '解析待ち'}</span>
     </div>
     <div className="advantage-meter" role="img" aria-label={score ? `先手基準の形勢ゲージ ${scoreLabel(score)}。勝率ではありません。` : '形勢未評価'}><span /></div>
     <div className="evaluation-bottom"><span className="first-candidate"><span>第一候補</span> <strong>{first ?? '—'}</strong></span><span className="evaluation-depth">{score ? `深さ ${score.depth}` : 'micro'}</span>
       {detailsTarget ? createPortal(analysisDetails, detailsTarget) : !onDetails ? analysisDetails : null}
     </div>
-    {(error || state?.message) && <span className="analysis-error" role="alert">解析停止：評価欄を押して読み筋を確認してください。</span>}
+    {enabled && !stopped && (error || state?.message) && <span className="analysis-error" role="alert">{cancelledError ? '解析準備を中断しました。' : '解析を開始できませんでした。'}<button type="button" onClick={retry}>解析を再試行</button></span>}
   </section>;
 }

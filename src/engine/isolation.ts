@@ -6,17 +6,23 @@ export interface AnalysisRecovery { slots: PanelSnapshot[]; view: 'live' | 'arch
 const KEY = 'fgmv:analysis-reload:v1';
 const MARKER = 'fgmv:analysis-preparation:v2';
 const BLOCKED = 'fgmv:analysis-preparation-failed:v2';
+const HISTORY_NONCE = 'fgmvAnalysisReloadNonce';
 interface PreparationMarker { schema: 2; purpose: 'watch' | 'study'; studySessionId?: string; nonce: string; attempt: 1; at: number }
 function consumeMarker(): PreparationMarker | undefined {
   try {
     const raw = sessionStorage.getItem(MARKER);
     sessionStorage.removeItem(MARKER);
+    const { [HISTORY_NONCE]: historyNonce, ...historyState } = history.state ?? {};
+    if (historyNonce) history.replaceState(Object.keys(historyState).length ? historyState : null,'');
     if (!raw) return;
     const value = JSON.parse(raw) as PreparationMarker;
     // Consumed attempts never silently become new automatic attempts, even after a manual reload.
     if (!globalThis.crossOriginIsolated) sessionStorage.setItem(BLOCKED, '1');
     if (value.schema !== 2 || value.attempt !== 1 || typeof value.nonce !== 'string' || !['watch','study'].includes(value.purpose) || !Number.isFinite(value.at) || Date.now()-value.at < 0 || Date.now()-value.at > 120_000) return;
-    if (performance.getEntriesByType('navigation').some((entry) => (entry as PerformanceNavigationTiming).type === 'reload')) return value;
+    const reload=performance.getEntriesByType('navigation').some((entry) => (entry as PerformanceNavigationTiming).type === 'reload');
+    // WebKit may report a COOP browsing-context switch as "navigate". The
+    // same history entry's single-use nonce verifies our own reload, not a new tab.
+    if (reload || (globalThis.crossOriginIsolated && historyNonce === value.nonce)) return value;
   } catch { /* No automatic restoration on unverified navigation. */ }
 }
 export const preparationRecovery = consumeMarker();
@@ -40,19 +46,30 @@ export const analysisRecovery = readRecovery();
 const workerUrl = new URL(`${import.meta.env.BASE_URL}analysis-isolation-sw.js`, location.origin).href;
 
 let preparation: Promise<boolean> | undefined;
+let preparationSignal: AbortSignal | undefined;
+type RecoveryInput = Omit<AnalysisRecovery, 'at'> | (() => Omit<AnalysisRecovery, 'at'>);
 let preparationPhase: 'idle' | 'preparing' | 'awaiting-reload' | 'ready' | 'failed' = 'idle';
 export function retryAnalysisPreparation(): void {
   if (preparationPhase === 'preparing' || preparationPhase === 'awaiting-reload') return;
-  preparation = undefined; preparationPhase = 'idle';
+  preparation = undefined; preparationSignal = undefined; preparationPhase = 'idle';
   try { sessionStorage.removeItem(BLOCKED); } catch { /* prepare reports storage failure. */ }
 }
-export function prepareAnalysis(recovery: Omit<AnalysisRecovery, 'at'>, studySessionId?: string, signal?: AbortSignal): Promise<boolean> {
+export function prepareAnalysis(recovery: RecoveryInput, studySessionId?: string, signal?: AbortSignal): Promise<boolean> {
   if (globalThis.crossOriginIsolated) { preparationPhase = 'ready'; return Promise.resolve(true); }
-  preparation ??= prepareOnce(recovery,studySessionId,signal).catch((error) => { preparationPhase = 'failed'; throw error; });
+  // A new ON/controller may arrive before the cancelled registration settles.
+  // It may start its own attempt, but a genuine failure remains latched.
+  if (preparation && preparationPhase === 'preparing' && preparationSignal?.aborted) return preparation.catch(() => false).then(() => prepareAnalysis(recovery,studySessionId,signal));
+  if (!preparation) {
+    preparationSignal=signal;
+    preparation=prepareOnce(recovery,studySessionId,signal).catch((error) => {
+      if (signal?.aborted) { preparation=undefined; preparationSignal=undefined; preparationPhase='idle'; throw new DOMException('解析準備を取り消しました。再試行で再開できます。','AbortError'); }
+      preparationPhase='failed'; throw error;
+    });
+  }
   return preparation;
 }
 
-async function prepareOnce(recovery: Omit<AnalysisRecovery, 'at'>, studySessionId?: string, signal?: AbortSignal): Promise<boolean> {
+async function prepareOnce(recovery: RecoveryInput, studySessionId?: string, signal?: AbortSignal): Promise<boolean> {
   const checkCancelled = () => { if (signal?.aborted) throw new Error('解析準備を取り消しました。ONまたは再解析で再試行できます。'); };
   checkCancelled();
   if (globalThis.crossOriginIsolated) return true;
@@ -78,8 +95,12 @@ async function prepareOnce(recovery: Omit<AnalysisRecovery, 'at'>, studySessionI
     if (registration.active) check();
   });
   checkCancelled();
-  sessionStorage.setItem(KEY, JSON.stringify({ ...recovery, at: Date.now() }));
-  sessionStorage.setItem(MARKER, JSON.stringify({ schema:2, purpose:studySessionId ? 'study' : 'watch', studySessionId, nonce:crypto.randomUUID(), attempt:1, at:Date.now() } satisfies PreparationMarker));
+  const latest=typeof recovery === 'function' ? recovery() : recovery;
+  checkCancelled();
+  const nonce=crypto.randomUUID();
+  history.replaceState({...history.state,[HISTORY_NONCE]:nonce},'');
+  sessionStorage.setItem(KEY, JSON.stringify({ ...latest, at: Date.now() }));
+  sessionStorage.setItem(MARKER, JSON.stringify({ schema:2, purpose:studySessionId ? 'study' : 'watch', studySessionId, nonce, attempt:1, at:Date.now() } satisfies PreparationMarker));
   preparationPhase = 'awaiting-reload';
   location.reload();
   return false;
