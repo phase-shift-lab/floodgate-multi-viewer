@@ -10,6 +10,19 @@ const create = () => createStudy(game,1,watch(game),false,false);
 const move = (s: StudySession,from:string,to:string) => { const b=studyPosition(s).board; return makeMove(b,from,to,b.squares[from].code); };
 beforeEach(()=>sessionStorage.clear());
 describe('study branches and bounded storage',()=>{
+  it('saves the first interactive move atomically without changing the source game',async()=>{
+    const s=await create(),first=move(s,'83','84'),original=JSON.stringify(game);
+    const next=await createStudy(game,1,watch(game),false,false,undefined,{move:first,isCurrent:()=>true});
+    expect(next.current).not.toBe('root');expect(next.nodes[next.current].move).toMatchObject({from:'83',to:'84'});
+    expect(JSON.parse(sessionStorage.getItem(STUDY_KEY)!).current).toBe(next.current);expect(JSON.stringify(game)).toBe(original);
+  });
+  it('stale and illegal first moves preserve the previously saved variation',async()=>{
+    const s=await create(),first=move(s,'83','84'),saved=sessionStorage.getItem(STUDY_KEY);
+    await expect(createStudy(game,1,watch(game),false,false,undefined,{move:first,isCurrent:()=>false})).rejects.toThrow('局面が更新');
+    expect(sessionStorage.getItem(STUDY_KEY)).toBe(saved);
+    await expect(createStudy(game,1,watch(game),false,false,undefined,{move:{...first,to:'85'},isCurrent:()=>true})).rejects.toThrow();
+    expect(sessionStorage.getItem(STUDY_KEY)).toBe(saved);
+  });
   it('freezes verified prefix, preserves watching game and emits full engine history',async()=>{
     const original=JSON.stringify(game), s=await create();
     const next=addStudyMove(s,move(s,'83','84'));

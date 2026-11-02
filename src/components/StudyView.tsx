@@ -3,7 +3,7 @@ import { BoardSurface, BoardControls } from './BoardSurface';
 import { MoveList } from './MoveList';
 import { loadGame } from '../data/client';
 import { shareUrl } from '../data/preferences';
-import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { formatMove } from '../domain/csa';
 import { legalMoves } from '../domain/studyRules';
 import { addStudyMove, branchNodes, navigateStudy, persistStudy, STUDY_TIMES, studyPosition, type StudySeconds, type StudySession } from '../domain/studySession';
@@ -13,10 +13,12 @@ import { localAnalysis } from '../engine/localAnalysis';
 import { playPieceSound } from '../data/pieceSound';
 import { LocalEvaluation } from './LocalEvaluation';
 import { ShogiBoard } from './ShogiBoard';
+import type { BoardPlayers } from './PlayerLabel';
+import { PromotionChoice } from './PromotionChoice';
 
 export interface ReturnToSource { ply?: number; game?: ParsedGame }
-interface Props { session: StudySession; onChange: (s: StudySession) => void; onReturn: (target?: ReturnToSource) => Promise<void>; sound: boolean; onSound: () => void; context?: ReactNode; settingsRequest?: number }
-export function StudyView({ session, onChange, onReturn, sound, onSound, context, settingsRequest }: Props) {
+interface Props { session: StudySession; onChange: (s: StudySession) => void; onReturn: (target?: ReturnToSource) => Promise<void>; sound: boolean; onSound: () => void; players?: BoardPlayers; settingsRequest?: number }
+export function StudyView({ session, onChange, onReturn, sound, onSound, players, settingsRequest }: Props) {
   const latestSession=useRef(session);
   useLayoutEffect(()=>{latestSession.current=session;},[session]);
   const [dialogOpen,setDialogOpen] = useState(false);
@@ -116,15 +118,14 @@ export function StudyView({ session, onChange, onReturn, sound, onSound, context
     const url=shareUrl({game:session.game.id,ply:session.origin,view:session.game.live?'live':'archive',boards:1,orientation:session.flipped?'white':'black'});
     void navigator.clipboard.writeText(url).then(()=>setMessage('元対局のURLをコピーしました。変化は含みません。')).catch(()=>setMessage(url));
   };
-  return <BoardSurface studying label="検討盤" context={context ?? <div className="players study-player-fallback"><strong>▲ {session.game.black} △ {session.game.white}</strong><button onClick={share}>共有</button></div>}
+  return <BoardSurface studying label="検討盤"
     caption={<strong className="study-badge">検討中</strong>}
+    captionActions={<><button className="context-share" onClick={share}>共有</button><button className="return-source" aria-label="本譜へ戻る" disabled={leaving||Boolean(promotion)} onClick={()=>void returnToWatch()}>本譜</button></>}
     evaluation={<LocalEvaluation board={board} position={position} enabled={session.enabled} onEnabledChange={enabled => commit({...session,enabled,stopped:false})} onPrepare={prepare} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} study milliseconds={session.seconds*1000 as 1000|3000|5000|10000} requestId={requestId} stopped={session.stopped || Boolean(terminal) || leaving} />}
-    board={<ShogiBoard state={board} flipped={session.flipped} lastMove={node.move ?? session.game.moveList.at(-1)} selected={selected} legalTargets={targets} locked={Boolean(promotion) || leaving || Boolean(terminal)} onSquare={selectSquare} onHand={(side,code) => { if (side === board.turn && !promotion) { setSelected(selected === 'hand:'+code ? undefined : 'hand:'+code); setMessage(''); } }} />}
+    board={<ShogiBoard players={players ?? {'+':{name:session.game.black},'-':{name:session.game.white}}} state={board} flipped={session.flipped} lastMove={node.move ?? session.game.moveList.at(-1)} selected={selected} legalTargets={targets} locked={Boolean(promotion) || leaving || Boolean(terminal)} onSquare={selectSquare} onHand={(side,code) => { if (side === board.turn && !promotion) { setSelected(selected === 'hand:'+code ? undefined : 'hand:'+code); setMessage(''); } }} />}
     status={<><span>{terminal ?? (promotion ? '成る・成らないを選んでください' : selected ? '移動可能な升 '+targets.length+'か所' : '手番側の駒・持駒を選んでください')}</span>{selected && !promotion && <button onClick={cancelSelection}>選択取消</button>}{newCount > 0 && <strong className="study-new-moves">本譜に新着{newCount}手</strong>}{liveMessage && <small>{liveMessage}</small>}</>}
-    controls={<BoardControls onFlip={() => { cancelSelection(); commit({...session,flipped:!session.flipped}); }} onStudy={() => void returnToWatch()} studyLabel="本譜へ" current={node.move ? formatMove(node.move) : '検討の起点'} ply={path.length} max={timeline.length-1} onPrevious={() => { if (node.parent) navigate(node.parent); }} onNext={() => { const id=node.preferred ?? node.children[0]; if (id) navigate(id); }} onCurrent={() => openDetails('record')} onSeek={ply => navigate(timeline[ply])} action="起点へ" onAction={() => navigate('root')} previousDisabled={!node.parent} nextDisabled={!node.children.length} disabled={Boolean(promotion) || leaving} />}
-    footer={<><div className="connection">検討はこのタブに2時間保存 · 本譜{session.origin}手目から</div>{message && <div className="study-message" role="alert">{message}</div>}{promotion && <><div className="promotion-choice" role="dialog" aria-modal="true" aria-label="成りの選択" onKeyDown={event => {
-      if (event.key !== 'Tab') return; const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('button')]; const index=buttons.indexOf(document.activeElement as HTMLButtonElement); event.preventDefault(); buttons[(index+(event.shiftKey ? buttons.length-1 : 1))%buttons.length]?.focus();
-    }}><strong>成りますか？</strong>{promotion.map((move,i) => <button key={move.piece} autoFocus={i===0} onClick={() => add(move)}>{move.piece === board.squares[move.from]?.code ? '成らない' : '成る'}</button>)}<button onClick={cancelSelection}>取消</button></div><div className="promotion-backdrop" aria-hidden="true" /></>}</>}
+    controls={<BoardControls onFlip={() => { cancelSelection(); commit({...session,flipped:!session.flipped}); }} current={node.move ? formatMove(node.move) : '検討の起点'} ply={path.length} max={timeline.length-1} onPrevious={() => { if (node.parent) navigate(node.parent); }} onNext={() => { const id=node.preferred ?? node.children[0]; if (id) navigate(id); }} onCurrent={() => openDetails('record')} onSeek={ply => navigate(timeline[ply])} action="起点へ" onAction={() => navigate('root')} previousDisabled={!node.parent} nextDisabled={!node.children.length} disabled={Boolean(promotion) || leaving} />}
+    footer={<><div className="connection">検討はこのタブに2時間保存 · 本譜{session.origin}手目から</div>{message && <div className="study-message" role="alert">{message}</div>}{promotion && <PromotionChoice moves={promotion} original={board.squares[promotion[0].from]?.code} onPick={add} onCancel={cancelSelection}/>} </>}
     modal={<DetailPanel open={dialogOpen} title="局面の詳細" tab={detailTab} onTabChange={setDetailTab} onClose={() => setDialogOpen(false)}>
       <div hidden={detailTab !== 'record'}><div className="record-kind" role="group" aria-label="棋譜の種類"><button aria-pressed={recordTab === 'source'} onClick={() => setRecordTab('source')}>本譜</button><button aria-pressed={recordTab === 'branches'} onClick={() => setRecordTab('branches')}>検討手順</button></div>
         <div hidden={recordTab !== 'source'}><p className="dialog-note">本譜の手を選ぶと、変化を保存して本譜へ戻ります。</p><MoveList game={sourceGame} ply={session.origin} active={dialogOpen && detailTab === 'record' && recordTab === 'source'} onPick={ply => void returnToWatch({ply,game:sourceGame})} /></div>

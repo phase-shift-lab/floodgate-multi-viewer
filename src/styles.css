@@ -829,3 +829,42 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .unified-panel .analysis-error button { min-height:44px; margin-left:.4rem; font-size:.75rem; }
 .app-shell .boards .unified-panel .unified-caption { min-height:33px; }
 @media(max-width:767px) { .app-shell .boards .unified-panel .unified-caption { min-height:45px; } }
+
+/* Side labels travel with the board; the evaluation always stays sente-based. */
+.board-player { display:grid; grid-template-columns:auto minmax(0,1fr) 2.5em auto 24px; align-items:center; gap:3px; min-height:22px; width:100%; color:var(--ink); font-size:.7rem; line-height:1.2; }
+.board-player .player-side { white-space:nowrap; font-weight:700; }
+.board-player strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.85rem; }
+.board-player .player-rating { font-size:.55rem; white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--muted); }
+.board-player .turn-badge { font-size:.58rem; text-align:center; min-height:1.2em; color:var(--accent); font-weight:700; }
+.board-player .star { min-width:24px; min-height:20px; padding:0; border:0; background:transparent; color:#bd8b28; font-size:1rem; }
+.unified-caption > .context-share,.unified-caption > .return-source { flex:none; min-height:32px; margin-right:.3rem; font-size:.7rem; padding:.2rem .4rem; }
+.unified-caption > .return-source { font-weight:700; color:var(--accent); }
+.unified-caption > .context-share,.unified-caption > .return-source { line-height:1.2; padding-block:1px; min-width:44px; }
+.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(5,minmax(44px,1fr)); }
+.unified-panel .evaluation-open > span { top:.3rem; bottom:auto; }
+.evaluation-basis { display:block; font-size:.5rem; font-weight:400; color:#b4cecc; line-height:1.2; }
+@media(max-width:767px) {
+ .board-player { min-height:24px; }
+ .board-player .star { min-height:22px; }
+ .unified-caption > .context-share,.unified-caption > .return-source { min-height:44px; }
+}
+/* Use the space recovered from the old player header for the two side labels. */
+.app-shell .boards .game-panel.unified-panel > .board-wrap { padding-block:0; }
+.unified-panel .evaluation-bottom { display:block; position:relative; padding-right:2.9rem; }
+.unified-panel .first-candidate { display:block; }
+.unified-panel .first-candidate > span { display:block; font-size:.5rem; line-height:1.1; }
+.unified-panel .first-candidate strong { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.95rem; line-height:1.2; }
+.unified-panel .evaluation-depth { position:absolute; top:0; right:2.9rem; font-size:.45rem; line-height:1.1; }
+@media(min-width:768px) {
+ .app-shell .boards .unified-panel .unified-caption { min-height:25px; }
+ .unified-panel .unified-caption .game-selector > button,.unified-caption > .context-share,.unified-caption > .return-source { min-height:24px; }
+ .app-shell .unified-panel .local-evaluation { min-height:52px; padding-block:.2rem; }
+ .unified-panel .evaluation-head { min-height:36px; }
+ .app-shell .boards .unified-panel .evaluation-head { flex-wrap:wrap; }
+ .app-shell .boards .unified-panel .evaluation-status { position:static; flex-basis:100%; font-size:.45rem; line-height:1.1; }
+ .unified-panel .evaluation-number { font-size:clamp(1.65rem,6.2cqw,2.1rem); }
+}
+@media(max-width:767px) {
+ .app-shell .unified-panel .local-evaluation { min-height:60px; padding-block:.25rem; }
+ .unified-panel > .connection { min-height:13px; line-height:1.2; padding-block:0; }
+}

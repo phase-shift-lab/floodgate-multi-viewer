@@ -65,7 +65,7 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
   return <section className={`local-evaluation ${!enabled ? 'is-off' : ''}`} aria-label="AI局面解説" style={{ '--black-share': `${advantageScale(score)}%` } as CSSProperties}>
     {onDetails && <button className="evaluation-open" aria-label="候補手・読み筋を開く" onClick={event => { event.currentTarget.focus({preventScroll:true}); onDetails(); }}><span>読み筋 ›</span></button>}
     <div className="evaluation-head">
-      <span className="evaluation-leader">{leader}</span>
+      <span className="evaluation-leader">{leader}<small className="evaluation-basis">先手基準</small></span>
       <output className="evaluation-number" data-kind={score?.kind} aria-label="先手基準の評価値" aria-live="polite">{score ? <>{scoreLabel({ ...score, bound: undefined })}{score.bound && <small>{score.bound === 'lowerbound' ? '以上' : '以下'}</small>}</> : '—'}</output>
       <span className="evaluation-status">{!enabled ? '解析OFF' : stopped ? '停止中' : error ? cancelledError ? '準備中断' : '解析停止' : preparing ? '準備中' : label || '解析待ち'}</span>
     </div>

@@ -104,7 +104,7 @@ describe('GamePanel live following', () => {
     expect(screen.getByLabelText('現在手数')).toHaveTextContent('1 / 3手');
     expect(screen.getByText('本譜に新しい指し手があります')).toBeInTheDocument();
     expect(props.onAnalysisSnapshot).toHaveBeenLastCalledWith(expect.objectContaining({ ply: 1, followingLatest: false }));
-    fireEvent.click(screen.getByRole('button', { name: '最新へ' }));
+    fireEvent.click(screen.getByRole('button', { name: '最新' }));
     await pollNext(4);
     expect(screen.getByLabelText('現在手数')).toHaveTextContent('4 / 4手');
     vi.mocked(loadGame).mockResolvedValue(resultAt(5));
@@ -125,7 +125,7 @@ describe('GamePanel live following', () => {
     const props = panelProps();
     const view = render(<GamePanel {...props} initialPly={2} initialFollowingLatest={false} />);
     await flushLoad();
-    fireEvent.click(screen.getByRole('button', { name: '最新へ' }));
+    fireEvent.click(screen.getByRole('button', { name: '最新' }));
     const saved = props.onAnalysisSnapshot.mock.calls.at(-1)![0];
     expect(saved).toMatchObject({ ply: 2, followingLatest: true });
     view.unmount();

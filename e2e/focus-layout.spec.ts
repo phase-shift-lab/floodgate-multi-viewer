@@ -23,7 +23,7 @@ test('one board surface in both states: square cells, stable controls, popup wit
 test('side markers lead names and favorites stay at the right edge',async({page}) => {
   await disabledAnalysis(page);await page.goto(base);await page.locator('.shogi-board').first().waitFor();
   for(const width of [1440,393]){
-    await page.setViewportSize({width,height:900});const players=page.locator('.unified-panel').first().locator('.players > div');await expect(players.locator('.player-side')).toHaveText(['▲','△']);
+    await page.setViewportSize({width,height:900});const players=page.locator('.unified-panel').first().locator('.board-player');await expect(players.locator('.player-side')).toHaveText(['△ 後手','▲ 先手']);
     for(const g of await players.evaluateAll(els=>els.map(el=>({side:el.querySelector('.player-side')!.getBoundingClientRect().right,name:el.querySelector('strong')!.getBoundingClientRect(),star:el.querySelector('.star')!.getBoundingClientRect().left})))){expect(g.side).toBeLessThanOrEqual(g.name.left);expect(g.star).toBeGreaterThanOrEqual(g.name.right);}
   }
 });

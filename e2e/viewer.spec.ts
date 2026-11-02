@@ -70,7 +70,7 @@ test('端末解析の評価値・日本語読み筋を表示し、OFF設定を�
       leader: Number.parseFloat(style('.evaluation-leader').fontSize),
       candidate: Number.parseFloat(style('.first-candidate strong').fontSize),
       variation: Number.parseFloat(style('.analysis-popover li p').fontSize),
-      player: Number.parseFloat(style('.players strong').fontSize),
+      player: Number.parseFloat(style('.board-player strong').fontSize),
     };
   });
   expect(typography.number).toBeGreaterThanOrEqual(26);
@@ -322,7 +322,6 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
     const verticalOverflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
     expect(verticalOverflow).toBeLessThanOrEqual(1);
 
-    await panel.locator('.player-side').first().click();
     await page.getByRole('button',{name:'設定を開く',exact:true}).click();
     const openPanelBottom = await panel.evaluate((item) => item.getBoundingClientRect().bottom);
     expect(openPanelBottom).toBeLessThanOrEqual(viewport.height);

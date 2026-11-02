@@ -10,9 +10,9 @@ import { shareUrl } from '../data/preferences';
 import { boardAt, formatMoveInGame } from '../domain/csa';
 import { updateLivePosition } from '../domain/liveFollow';
 import { clampPlaybackSeconds, nextPlaybackPly, playbackDelayMs } from '../domain/playback';
-import { rateLabel } from '../domain/selection';
-import type { ConnectionState, GameSummary, ParsedGame } from '../domain/types';
-import { ShogiBoard } from './ShogiBoard';
+import type { ConnectionState, GameSummary, Move, ParsedGame } from '../domain/types';
+import { WatchBoard } from './WatchBoard';
+import type { BoardPlayers } from './PlayerLabel';
 import { LocalEvaluation } from './LocalEvaluation';
 import type { PanelSnapshot } from '../engine/isolation';
 import { toEnginePosition } from '../domain/localEvaluation';
@@ -48,7 +48,7 @@ interface Props {
   suspended?: boolean;
   initialGame?: ParsedGame;
   onResumeStudy?: () => void;
-  onStudy?: (game: ParsedGame, ply: number, snapshot: PanelSnapshot) => void;
+  onStudy?: (game: ParsedGame, ply: number, snapshot: PanelSnapshot, move:Move, isCurrent:()=>boolean) => Promise<boolean>;
   sound?: boolean;
   study?: StudySession;
   onStudyChange?: (session: StudySession) => void;
@@ -78,6 +78,7 @@ export function GamePanel(props: Props) {
   const [fetchedAt, setFetchedAt] = useState<Date>();
   const [newMoves, setNewMoves] = useState(false);
   const [shareMessage, setShareMessage] = useState('');
+  const [watchNotice,setWatchNotice] = useState('');
   const [analysisEnabled, setAnalysisEnabled] = useState(() => props.initialAnalysisEnabled !== false && loadAnalysisEnabled(props.summary.id));
   const changeAnalysisEnabled = (enabled: boolean) => { saveAnalysisEnabled(props.summary.id, enabled); setAnalysisEnabled(enabled); };
   const failures = useRef(0);
@@ -209,22 +210,20 @@ export function GamePanel(props: Props) {
   const requestSettings=useEffectEvent(() => { if (!props.study) openDetails('settings'); });
   const lastSettingsRequest=useRef(props.settingsRequest);
   useEffect(() => { if (props.settingsRequest && props.settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=props.settingsRequest; },[props.settingsRequest]);
-  const gameMenu = <ToolsMenu disabled={Boolean(props.study)} label={<span>{props.fixture ? 'FIXTURE' : props.summary.live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
+  const gameMenu = <ToolsMenu disabled={Boolean(props.study)||props.suspended} label={<span>{props.fixture ? 'FIXTURE' : props.summary.live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
       <label>表示する対局<select aria-label="表示する対局" value={props.summary.id} onChange={event => props.onSelect(event.target.value)}>{props.games.map(item => <option key={item.id} value={item.id}>{item.black} vs {item.white}</option>)}</select></label>
       <button aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
       {props.onResumeStudy && <button onClick={props.onResumeStudy}>前の検討を再開</button>}
-      <button onClick={() => moveTo(0)}>最初</button><button onClick={() => moveTo(maxPly,true)}>最新へ</button>
+      <button onClick={() => moveTo(0)}>最初</button><button onClick={() => moveTo(maxPly,true)}>最新</button>
       <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
       <p>{safePly}手 / {maxPly}手 · {board?.turn === '+' ? '先手番' : '後手番'} · {game?.result ?? (game?.live ? '対局中' : '結果不明')}</p>
       <p>観戦 {formatPeoplePerDay(props.stats?.viewsToday)} · 同時 {formatPeople(props.stats?.concurrent)}</p>
     </ToolsMenu>;
-  const context = <div className="players">
-        <button className="context-share" onClick={copyShare}>共有</button>
-        {shareMessage && <output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}
-        <div><span className="player-side" aria-label="先手">▲</span><strong title={props.summary.black}>{props.summary.black}</strong><span className="player-rating">{rateLabel(game?.blackRate ?? props.summary.blackRate)}</span><button className="star" aria-label={`${props.summary.black}をお気に入り${props.favoriteNames.includes(props.summary.black) ? '解除' : '登録'}`} onClick={() => props.onFavorite(props.summary.black)}>{props.favoriteNames.includes(props.summary.black) ? '★' : '☆'}</button></div>
-        <div><span className="player-side" aria-label="後手">△</span><strong title={props.summary.white}>{props.summary.white}</strong><span className="player-rating">{rateLabel(game?.whiteRate ?? props.summary.whiteRate)}</span><button className="star" aria-label={`${props.summary.white}をお気に入り${props.favoriteNames.includes(props.summary.white) ? '解除' : '登録'}`} onClick={() => props.onFavorite(props.summary.white)}>{props.favoriteNames.includes(props.summary.white) ? '★' : '☆'}</button></div>
-      </div>;
-  if (props.study && props.onStudyChange && props.onReturnStudy) return <StudyView settingsRequest={props.settingsRequest} session={props.study} onChange={props.onStudyChange} onReturn={props.onReturnStudy} sound={Boolean(props.sound)} onSound={props.onSound ?? (() => {})} context={context} />;
+  const players:BoardPlayers={
+    '+':{name:props.summary.black,rating:game?.blackRate??props.summary.blackRate,favorite:props.favoriteNames.includes(props.summary.black),onFavorite:()=>props.onFavorite(props.summary.black)},
+    '-':{name:props.summary.white,rating:game?.whiteRate??props.summary.whiteRate,favorite:props.favoriteNames.includes(props.summary.white),onFavorite:()=>props.onFavorite(props.summary.white)},
+  };
+  if (props.study && props.onStudyChange && props.onReturnStudy) return <StudyView settingsRequest={props.settingsRequest} session={props.study} onChange={props.onStudyChange} onReturn={props.onReturnStudy} sound={Boolean(props.sound)} onSound={props.onSound ?? (() => {})} players={players} />;
 
   const settings = <div className="board-settings">
     <label>再生速度<select value={SPEEDS.includes(speed) ? speed : 'custom'} onChange={event => { if (event.target.value !== 'custom') { const value=Number(event.target.value); setSpeed(value); props.onSpeedChange(value); } }}>{SPEEDS.map(value => <option key={value} value={value}>{value}秒</option>)}<option value="custom">任意</option></select></label>
@@ -234,12 +233,12 @@ export function GamePanel(props: Props) {
     {game?.evaluationsTrusted && <details><summary>CSA評価値</summary><p>AI間で尺度は同じとは限りません。</p><ul>{game.moveList.filter(move => move.evaluation !== undefined).map(move => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
   </div>;
   return <BoardSurface label={props.summary.black+' 対 '+props.summary.white} onKeyDown={onKeyDown}
-    context={context}
     caption={gameMenu}
+    captionActions={<><button className="context-share" onClick={copyShare}>共有</button>{shareMessage&&<output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}</>}
     evaluation={board && props.onPrepareAnalysis && <LocalEvaluation board={board} position={enginePosition} enabled={analysisEnabled} onEnabledChange={changeAnalysisEnabled} onPrepare={props.onPrepareAnalysis} suspended={props.suspended} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} />}
-    board={board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly-1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
-    status={!followingLatest ? <><span>{newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中'}</span><button onClick={() => moveTo(maxPly,true)}>最新へ</button></> : <span>最新手に追従中</span>}
-    controls={<BoardControls onFlip={() => { setFlipped(!flipped); props.onOrientationChange(!flipped); }} onStudy={() => { if (game) { setPlaying(false); props.onStudy?.(game,safePly,snapshot()); } }} studyDisabled={!props.onStudy || Boolean(studyUnavailable)} studyTitle={studyUnavailable} current={safePly && game ? formatMoveInGame(game,safePly) : '開始局面'} ply={safePly} max={maxPly} onPrevious={() => moveTo(safePly-1)} onNext={() => moveTo(safePly+1)} onCurrent={() => openDetails('record')} onSeek={next => moveTo(next)} action={playing ? '停止' : '再生'} onAction={() => setPlaying(!playing)} disabled={!game} previousDisabled={safePly === 0} nextDisabled={safePly === maxPly} />}
+    board={board ? <WatchBoard board={board} revision={props.summary.id+'|'+safePly+'|'+enginePosition} flipped={flipped} players={players} lastMove={safePly ? game?.moveList[safePly-1] : undefined} disabled={!props.onStudy||Boolean(studyUnavailable)||Boolean(props.suspended)} onNotice={setWatchNotice} onMove={async(move,isCurrent)=>{if(!game||!props.onStudy)return false;return props.onStudy(game,safePly,snapshot(),move,isCurrent);}}/> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
+    status={!followingLatest ? <><span>{watchNotice||(newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中')}</span><button onClick={() => moveTo(maxPly,true)}>最新</button></> : <span>{watchNotice||'最新手に追従中'}</span>}
+    controls={<BoardControls onFlip={() => { setFlipped(!flipped); props.onOrientationChange(!flipped); }} current={safePly && game ? formatMoveInGame(game,safePly) : '開始局面'} ply={safePly} max={maxPly} onPrevious={() => moveTo(safePly-1)} onNext={() => moveTo(safePly+1)} onCurrent={() => openDetails('record')} onSeek={next => moveTo(next)} action={playing ? '停止' : '再生'} onAction={() => setPlaying(!playing)} disabled={!game || props.suspended} previousDisabled={safePly === 0} nextDisabled={safePly === maxPly} />}
     footer={<div className="connection"><span className={'dot '+connection} aria-hidden="true" />接続: {connectionLabel(connection)}<span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span></div>}
     modal={<DetailPanel open={dialogOpen} tab={detailTab} onTabChange={setDetailTab} onClose={() => closeDetails()}>
       <div hidden={detailTab !== 'record'}>{game && <MoveList game={game} ply={safePly} active={dialogOpen && detailTab === 'record'} onPick={next => { moveTo(next); closeDetails(false); }} />}</div>

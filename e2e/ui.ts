@@ -30,8 +30,25 @@ export async function settleBoard(panel: Locator) {
   });
 }
 export async function startStudy(page: Page, panel=page.locator('.unified-panel').first()) {
-  await panel.getByRole('button',{name:'検討',exact:true}).click();
-  const study=page.locator('.unified-panel.is-studying'); await expect(study).toBeVisible(); return study;
+  const side=await panel.locator('.board-player.has-turn').getAttribute('data-side');
+  const pieces=panel.locator(`.square[aria-label*="${side==='+'?'先手':'後手'}"]:has(.piece)`);
+  const preferred=panel.locator('[data-square="77"]');
+  let selected=false;
+  if(side==='+'&&await preferred.locator('.piece').count()){
+    await preferred.click();selected=await panel.locator('.legal-target').count()>0;
+    if(!selected)await preferred.click();
+  }
+  for(let i=0;!selected&&i<await pieces.count();i++){
+    await pieces.nth(i).click();selected=await panel.locator('.legal-target').count()>0;
+    if(!selected)await pieces.nth(i).click();
+  }
+  if(!selected)throw new Error('No legal board move available');
+  const pawn=panel.locator('[data-square="76"].legal-target');
+  await (await pawn.count()?pawn:panel.locator('.legal-target').first()).click();
+  const promotion=page.getByRole('dialog',{name:'成りの選択'});
+  if(await promotion.isVisible())await promotion.getByRole('button',{name:'成らない',exact:true}).click();
+  const study=page.locator('.unified-panel.is-studying');await expect(study).toBeVisible();
+  await study.getByRole('button',{name:'起点へ',exact:true}).click();return study;
 }
 export async function settings(panel: Locator) {
   await panel.getByRole('button',{name:'棋譜を開く'}).click();

@@ -29,12 +29,25 @@ export function useBoardFit() {
       const width=Math.max(min,Math.min(600,columnWidth-32,(available-chrome-spacing)/Math.max(1.2,ratio)));
       const size=Math.floor(Math.min(width,columnWidth-32))+'px';
       if (root.style.getPropertyValue('--unified-board-size') !== size) root.style.setProperty('--unified-board-size',size);
+      return {available,max:Math.floor(Math.min(600,columnWidth-32))};
     };
     const stabilize=() => {
+      let bounds:ReturnType<typeof fit>;
       for (let pass=0; pass<12; pass++) {
         const before=root.style.getPropertyValue('--unified-board-size');
-        fit();
+        bounds=fit();
         if (root.style.getPropertyValue('--unified-board-size') === before) break;
+      }
+      if(!bounds)return;
+      // Ratio iteration can stop one pixel short because labels have fixed
+      // heights. Resolve that rounding against actual geometry in both modes.
+      for(let pass=0;pass<3;pass++){
+        const size=parseFloat(root.style.getPropertyValue('--unified-board-size'));
+        if(size>=bounds.max)break;
+        root.style.setProperty('--unified-board-size',(size+1)+'px');
+        const style=getComputedStyle(root);
+        const height=[...root.children].filter(el=>el.tagName!=='DIALOG'&&!['absolute','fixed'].includes(getComputedStyle(el).position)).reduce((sum,el)=>sum+el.getBoundingClientRect().height,0)+parseFloat(style.borderTopWidth)+parseFloat(style.borderBottomWidth);
+        if(height>bounds.available){root.style.setProperty('--unified-board-size',size+'px');break;}
       }
     };
     fitNow.current=stabilize;

@@ -1,4 +1,5 @@
 import type { BoardState, Move, PieceCode, Side } from '../domain/types';
+import { PlayerLabel, type BoardPlayers } from './PlayerLabel';
 
 const GLYPH: Record<PieceCode, string> = {
   FU: '歩', KY: '香', KE: '桂', GI: '銀', KI: '金', KA: '角', HI: '飛', OU: '玉',
@@ -34,7 +35,7 @@ function Hand({ side, state, position, upside = false, input }: { side: Side; st
   );
 }
 
-export function ShogiBoard({ state, flipped, lastMove, ...input }: { state: BoardState; flipped: boolean; lastMove?: Move } & BoardInput) {
+export function ShogiBoard({ state, flipped, lastMove, players, ...input }: { state: BoardState; flipped: boolean; lastMove?: Move; players?:BoardPlayers } & BoardInput) {
   const files = flipped ? [1,2,3,4,5,6,7,8,9] : [9,8,7,6,5,4,3,2,1];
   const ranks = flipped ? [9,8,7,6,5,4,3,2,1] : [1,2,3,4,5,6,7,8,9];
   const topSide: Side = flipped ? '+' : '-';
@@ -42,6 +43,7 @@ export function ShogiBoard({ state, flipped, lastMove, ...input }: { state: Boar
   return (
     <div className="board-wrap">
       <div className="board-stack">
+        {players && <PlayerLabel side={topSide} turn={state.turn} player={players[topSide]} position="top"/>}
         <Hand side={topSide} state={state} position="back" upside input={input} />
         <div className="board-coordinates">
         <div className="file-labels" aria-label="筋の番号">{files.map((file) => <span key={file}>{file}</span>)}</div>
@@ -63,6 +65,7 @@ export function ShogiBoard({ state, flipped, lastMove, ...input }: { state: Boar
         <div className="rank-labels" aria-label="段の番号">{ranks.map((rank) => <span key={rank}>{'一二三四五六七八九'[rank-1]}</span>)}</div>
         </div></div>
         <Hand side={bottomSide} state={state} position="front" input={input} />
+        {players && <PlayerLabel side={bottomSide} turn={state.turn} player={players[bottomSide]} position="bottom"/>}
       </div>
     </div>
   );

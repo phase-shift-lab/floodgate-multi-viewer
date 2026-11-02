@@ -3,13 +3,13 @@ import { analysisRecovery, preparationRecovery, prepareAnalysis, type PanelSnaps
 import type { ReturnToSource } from './components/StudyView';
 import { createStudy, persistStudy, restoreStudy, savedStudyExists, type StudySession, type WatchSnapshot } from './domain/studySession';
 import { localAnalysis } from './engine/localAnalysis';
-import { loadPieceSound, savePieceSound } from './data/pieceSound';
+import { loadPieceSound, playPieceSound, savePieceSound } from './data/pieceSound';
 import { loadAnalysisEnabled } from './data/analysisPreferences';
 import { GamePanel } from './components/GamePanel';
 import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
 import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
 import { compareGames, selectFeaturedGames } from './domain/selection';
-import type { GameSummary, ParsedGame, ViewerSettings } from './domain/types';
+import type { GameSummary, Move, ParsedGame, ViewerSettings } from './domain/types';
 
 interface Slot { id: string; pinned: boolean }
 
@@ -241,18 +241,20 @@ export default function App() {
       return {...snapshot,pinned:slot.pinned};
     }), view,expanded,settings:{...settings},at:0,
   });
-  const startStudy = async (game: ParsedGame, ply: number, snapshot: PanelSnapshot, index: number) => {
-    if (validation.current) return;
-    if ((study || hasSavedStudy) && !confirm('保存中の検討を新しい起点に置き換えますか？')) return;
+  const startStudy = async (game: ParsedGame, ply: number, snapshot: PanelSnapshot, index: number, move:Move, isCurrent:()=>boolean) => {
+    if (validation.current) return false;
+    if ((study || hasSavedStudy) && !confirm('保存中の検討を新しい起点に置き換えますか？')) return false;
     const controller = new AbortController(); validation.current=controller;
     setValidating(true); setStudyMessage('');
     try {
       analysisSnapshots.current.set(index,snapshot);
       const watch = watchSnapshot();
-      const session = await createStudy(game,ply,watch,snapshot.flipped,snapshot.enabled,controller.signal);
-      if (controller.signal.aborted) return;
+      const session = await createStudy(game,ply,watch,snapshot.flipped,snapshot.enabled,controller.signal,{move,isCurrent});
+      if (controller.signal.aborted) return false;
       studyingRef.current=true; setStudying(true); localAnalysis.stopAll(); setStudy(session); setHasSavedStudy(true); setExpanded(settings.boardCount === 1 && expanded === undefined ? undefined : index); setView('live');
-    } catch (error) { setStudyMessage((error as Error).message); }
+      playPieceSound(sound);
+      return true;
+    } catch (error) { setStudyMessage((error as Error).message); return false; }
     finally { validation.current=undefined; setValidating(false); }
   };
   const resumeStudy = async (automatic = false, preferredIndex?: number) => {
@@ -334,12 +336,12 @@ export default function App() {
         <button className="mobile-menu-toggle" aria-expanded={menuOpen} aria-controls="header-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? '閉じる' : 'メニュー'}</button>
         <div id="header-menu" className={`header-menu${menuOpen ? ' is-open' : ''}`}>
           <nav aria-label="メインメニュー">
-            <button disabled={studying} className={view === 'live' ? 'active' : ''} onClick={() => changeView('live')}>ライブ</button>
-            <button disabled={studying} className={view === 'archive' ? 'active' : ''} onClick={() => changeView('archive')}>過去対局</button>
+            <button disabled={studying || validating} className={view === 'live' ? 'active' : ''} onClick={() => changeView('live')}>ライブ</button>
+            <button disabled={studying || validating} className={view === 'archive' ? 'active' : ''} onClick={() => changeView('archive')}>過去対局</button>
           </nav>
           <div className="header-actions">
             <button className="sound-toggle" aria-pressed={sound} onClick={toggleSound}>駒音 {sound ? 'ON' : 'OFF'}</button>
-            <fieldset className="count-switch"><legend>表示局数</legend>{([1,2,4] as const).map((count) => <button key={count} disabled={studying} aria-pressed={settings.boardCount === count} onClick={() => setBoardCount(count)}>{count}局</button>)}</fieldset>
+            <fieldset className="count-switch"><legend>表示局数</legend>{([1,2,4] as const).map((count) => <button key={count} disabled={studying || validating} aria-pressed={settings.boardCount === count} onClick={() => setBoardCount(count)}>{count}局</button>)}</fieldset>
             <label className="theme-select">配色<select aria-label="配色" value={settings.theme} onChange={(event) => setSettings((value) => ({ ...value, theme: event.target.value as ViewerSettings['theme'] }))}><option value="system">端末設定</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
             <a className="header-source-link" aria-label="Floodgate 公開情報" href="https://wdoor.c.u-tokyo.ac.jp/shogi/" target="_blank" rel="noreferrer">出典</a>
             <label className="auto-switch"><input type="checkbox" checked={settings.autoSwitchFinished} onChange={(event) => setSettings((value) => ({ ...value, autoSwitchFinished: event.target.checked }))} />終局後に注目局へ切替</label>
@@ -378,7 +380,7 @@ export default function App() {
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
               const restoredPanel = recovery?.slots[realIndex]?.summary.id === summary.id ? recovery.slots[realIndex] : undefined;
-              return <GamePanel settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} onResumeStudy={hasSavedStudy ? () => void resumeStudy(false,realIndex) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot) => void startStudy(game,ply,snapshot,realIndex)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
+              return <GamePanel settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} onResumeStudy={hasSavedStudy ? () => void resumeStudy(false,realIndex) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
                 key={`${panelRevision}:${restoredWatch?.at ?? 0}:${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
             })}
           </div>}

@@ -35,7 +35,7 @@ export function studyPosition(session: StudySession): { board: BoardState; posit
   for (const move of game.moveList) { board = applyMove(board,move); history.push(positionKey(board)); }
   return { board, position:toEnginePosition(game,game.moveList.length), history, terminal:terminalReason(board,history) };
 }
-export async function createStudy(game: ParsedGame, ply: number, watch: WatchSnapshot, flipped: boolean, enabled: boolean, signal?: AbortSignal): Promise<StudySession> {
+export async function createStudy(game: ParsedGame, ply: number, watch: WatchSnapshot, flipped: boolean, enabled: boolean, signal?: AbortSignal, entry?:{move:Move;isCurrent:()=>boolean}): Promise<StudySession> {
   const { initial, prefix, board } = await validatedPrefix(game,ply,signal);
   // Freeze only the verified prefix as the study's source. The full watch game stays in the snapshot.
   const session: StudySession = {
@@ -43,8 +43,9 @@ export async function createStudy(game: ParsedGame, ply: number, watch: WatchSna
     nodes:{ root:{id:'root',children:[],key:positionKey(board)} }, current:'root',
     watch:{...structuredClone(watch),at:Date.now()}, flipped, enabled, seconds:1, stopped:false,
   };
-  persistStudy(session);
-  return session;
+  if(entry&&!entry.isCurrent())throw new Error('局面が更新されたため、検討開始を取り消しました。');
+  const next=entry?addStudyMove(session,entry.move):session;
+  return persistStudy(next);
 }
 export function addStudyMove(session: StudySession, move: Move): StudySession {
   const { board,terminal } = studyPosition(session);
