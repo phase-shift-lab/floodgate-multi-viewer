@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { base, count, disabledAnalysis, startStudy } from './ui';
+import { base, count, disabledAnalysis, settleBoard, startStudy } from './ui';
 
 test('one board surface in both states: square cells, stable controls, popup without page reflow',async({page}) => {
   await disabledAnalysis(page);await page.goto(base);await page.locator('.shogi-board').first().waitFor();await count(page,1);
@@ -8,6 +8,7 @@ test('one board surface in both states: square cells, stable controls, popup wit
     const panel=page.locator('.unified-panel');
     for(const viewport of [{width:1440,height:900},{width:1280,height:720},{width:393,height:852},{width:320,height:660},{width:852,height:393}]){
       await page.setViewportSize(viewport);
+      await settleBoard(panel);
       await expect.poll(()=>panel.locator('.shogi-board').evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(230);
       const geometry=await panel.evaluate(el=>{const b=el.querySelector('.shogi-board')!.getBoundingClientRect(),cells=[...el.querySelectorAll('.square')].map(s=>s.getBoundingClientRect());return {square:Math.abs(b.width-b.height),equal:cells.every(c=>Math.abs(c.width-c.height)<1),overflow:document.documentElement.scrollWidth>innerWidth+1,right:el.querySelector('.rank-labels')!.getBoundingClientRect().right,panelRight:el.getBoundingClientRect().right}});
       expect(geometry.square).toBeLessThan(1);expect(geometry.equal).toBe(true);expect(geometry.overflow).toBe(false);expect(geometry.right).toBeLessThanOrEqual(geometry.panelRight);
@@ -30,6 +31,7 @@ test('side markers lead names and favorites stay at the right edge',async({page}
 test('entering and leaving study from a single panel keeps the board in place',async({page})=>{
   await disabledAnalysis(page);await page.goto(base);await page.locator('.shogi-board').first().waitFor();await count(page,1);
   const panel=page.locator('.unified-panel');
+  await settleBoard(panel);
   const before=await panel.locator('.shogi-board').boundingBox();
   await startStudy(page);expect(await panel.locator('.shogi-board').boundingBox()).toEqual(before);
   await panel.getByRole('button',{name:'本譜へ戻る'}).click();

@@ -3,6 +3,7 @@ import { useLayoutEffect, useRef } from 'react';
 /** Size every panel from the same board/hand geometry and actual controls. */
 export function useBoardFit() {
   const ref = useRef<HTMLElement>(null);
+  const fitNow = useRef<(() => void) | undefined>(undefined);
   useLayoutEffect(() => {
     const root=ref.current;
     if (!root || typeof ResizeObserver === 'undefined') return;
@@ -29,16 +30,25 @@ export function useBoardFit() {
       const size=Math.floor(Math.min(width,columnWidth-32))+'px';
       if (root.style.getPropertyValue('--unified-board-size') !== size) root.style.setProperty('--unified-board-size',size);
     };
-    const schedule=() => { cancelAnimationFrame(frame); frame=requestAnimationFrame(fit); };
+    const stabilize=() => {
+      for (let pass=0; pass<12; pass++) {
+        const before=root.style.getPropertyValue('--unified-board-size');
+        fit();
+        if (root.style.getPropertyValue('--unified-board-size') === before) break;
+      }
+    };
+    fitNow.current=stabilize;
+    const schedule=() => { cancelAnimationFrame(frame); frame=requestAnimationFrame(stabilize); };
     const observer=new ResizeObserver(schedule);
     const modalObserver=new MutationObserver(schedule);
     modalObserver.observe(root,{subtree:true,attributes:true,attributeFilter:['open']});
     observer.observe(root); if (root.parentElement) observer.observe(root.parentElement);
     for (const child of root.children) if (child.tagName !== 'DIALOG') observer.observe(child);
     window.addEventListener('resize',schedule);
-    // Resolve fixed hand/count spacing before the first paint, including controller changes.
-    for (let pass=0; pass<4; pass++) fit();
-    return () => { observer.disconnect(); modalObserver.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize',schedule); };
+    return () => { fitNow.current=undefined; observer.disconnect(); modalObserver.disconnect(); cancelAnimationFrame(frame); window.removeEventListener('resize',schedule); };
   },[]);
+  // Count/expanded/controller changes reuse this surface. Fit their new chrome
+  // before painting, rather than waiting for ResizeObserver's next animation frame.
+  useLayoutEffect(() => { fitNow.current?.(); });
   return ref;
 }
