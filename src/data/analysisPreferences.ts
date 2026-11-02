@@ -7,7 +7,9 @@ export function loadAnalysisEnabled(gameId: string): boolean {
   const value = read();
   let sessionDisabled = false;
   try { sessionDisabled = sessionStorage.getItem('fgmv:analysis-disabled') === '1'; } catch { /* Use local preferences. */ }
-  return !sessionDisabled && !value.disabled && value.games?.[gameId] !== false;
+  // The session flag is a fallback for blocked localStorage. An explicit saved
+  // ON takes priority if a COOP navigation retains an older session flag.
+  return !(sessionDisabled && value.disabled !== false) && !value.disabled && value.games?.[gameId] !== false;
 }
 export function saveAnalysisEnabled(gameId: string, enabled: boolean): void {
   const value = read();

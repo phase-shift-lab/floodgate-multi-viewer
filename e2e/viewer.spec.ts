@@ -1,5 +1,10 @@
 import { expect, test, type Locator } from '@playwright/test';
 
+async function openPanelTools(panel: Locator) {
+  const toggle=panel.getByRole('button',{name:'対局を選ぶ',exact:true});
+  if(await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
+}
+
 async function expectHeldPieceMatchesBoardPiece(panel: Locator) {
   const measurement = await panel.evaluate((root) => {
     const heldPiece = root.querySelector<HTMLElement>('.hand-piece');
@@ -52,7 +57,7 @@ test('端末解析の評価値・日本語読み筋を表示し、OFF設定を�
   const panel = page.locator('.game-panel').first();
   await expect(panel.locator('.evaluation-number')).not.toHaveText('—');
   await expect(panel.locator('.first-candidate strong')).toHaveText(/^[▲△]/);
-  await panel.locator('.analysis-lines summary').click();
+  await panel.getByRole('button',{name:'候補手・読み筋を開く'}).click();
   const popover = panel.locator('.analysis-popover');
   await expect(popover).toBeVisible();
   await expect(popover.locator('li').first()).toContainText('第1候補');
@@ -111,7 +116,7 @@ test('1440x900で4局を表示し、1/2/4局を切り替える', async ({ page }
   expect(Math.min(...boardBoxes.map(({ width }) => width))).toBeGreaterThanOrEqual(285);
   expect(boardBoxes.every(({ width, height }) => Math.abs(width - height) <= 1)).toBe(true);
   await expect(page.locator('.last-to')).toHaveCount(4);
-  await expect(page.locator('.last-move-text').first()).toContainText('直前手');
+  await expect(page.locator('.current-move').first()).toHaveText('棋譜');
   const markerPanel = panels.first();
   const lastOrigins = markerPanel.locator('.last-from');
   const previousMoveButton = markerPanel.getByRole('button', { name: '1手戻る' });
@@ -210,7 +215,7 @@ test('PCの横長・低め画面でも4局を一列で画面内に収める', as
     }));
     expect(Math.max(...panelBoxes.map(({ top }) => top)) - Math.min(...panelBoxes.map(({ top }) => top))).toBeLessThanOrEqual(2);
     expect(panelBoxes.map(({ left }) => left)).toEqual([...panelBoxes.map(({ left }) => left)].sort((a, b) => a - b));
-    expect(panelBoxes.every(({ top, bottom }) => top >= 0 && bottom <= viewport.height)).toBe(true);
+    expect(panelBoxes.every(({ top, bottom }) => top >= 0 && bottom <= viewport.height), JSON.stringify({viewport,panelBoxes})).toBe(true);
     const boardWidths = await page.locator('.shogi-board').evaluateAll((items) => items.map((item) => item.getBoundingClientRect().width));
     expect(Math.min(...boardWidths)).toBeGreaterThanOrEqual(viewport.minimumBoard);
     const verticalOverflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
@@ -227,8 +232,9 @@ test('PCの4局表示で詳細設定を開いても内容が見切れない', as
     await page.reload();
     const panel = page.getByTestId('boards').locator('.game-panel').first();
 
-    await panel.getByText('詳細設定', { exact: true }).click();
-    await expect(panel.locator('.replay-settings select')).toBeVisible();
+    await panel.locator('.player-side').first().click();
+    await page.getByRole('button',{name:'設定を開く',exact:true}).click();
+    await expect(panel.locator('.board-settings select')).toBeVisible();
     await expect(panel.getByLabel('任意再生速度（秒）')).toBeVisible();
     await expect(panel.locator('.connection')).toBeVisible();
 
@@ -262,7 +268,7 @@ test('PCの1・2局表示は低い画面でも主要情報を自動フィット�
         const board = panel.locator('.shogi-board');
         const connection = panel.locator('.connection');
         await expect(board).toBeVisible();
-        await expect(panel.locator('.panel-actions')).toBeVisible();
+        await expect(panel.locator('.board-controls')).toBeVisible();
         await expect(connection).toBeVisible();
 
         const panelBox = await panel.boundingBox();
@@ -298,12 +304,14 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
   ]) {
     await page.setViewportSize(viewport);
     await page.reload();
+    await openPanelTools(page.locator('.game-panel').first());
     await page.getByRole('button', { name: '単局拡大' }).first().click();
-    const panel = page.locator('.game-panel.expanded');
+    const panel = page.locator('.unified-panel');
     await expect(panel).toHaveCount(1);
+    await openPanelTools(panel);
     await expect(panel.getByRole('button', { name: '一覧へ戻る' })).toBeVisible();
-    await expect(panel.locator('.top-control-shelf')).toBeVisible();
-    await expect(panel.getByText('詳細設定', { exact: true })).toBeVisible();
+    await expect(panel.locator('.board-controls')).toBeVisible();
+    await expect(page.getByRole('button',{name:'設定を開く',exact:true})).toBeVisible();
     await expect(panel.locator('.connection')).toBeVisible();
     const boardWidth = await panel.locator('.shogi-board').evaluate((item) => item.getBoundingClientRect().width);
     expect(boardWidth).toBeGreaterThanOrEqual(viewport.minimumBoard);
@@ -314,7 +322,8 @@ test('単局拡大は盤面と主要操作をスクロールなしで表示す�
     const verticalOverflow = await page.evaluate(() => document.documentElement.scrollHeight - document.documentElement.clientHeight);
     expect(verticalOverflow).toBeLessThanOrEqual(1);
 
-    await panel.getByText('詳細設定', { exact: true }).click();
+    await panel.locator('.player-side').first().click();
+    await page.getByRole('button',{name:'設定を開く',exact:true}).click();
     const openPanelBottom = await panel.evaluate((item) => item.getBoundingClientRect().bottom);
     expect(openPanelBottom).toBeLessThanOrEqual(viewport.height);
   }
@@ -360,9 +369,12 @@ test('スマホは保存済み局数があっても1局で開き、主要操作�
     const geometry = await panels.evaluate((panel) => ({
       font: Number.parseFloat(getComputedStyle(panel.querySelector('.piece')!).fontSize),
       board: panel.querySelector('.shogi-board')!.getBoundingClientRect().width,
+      rankRight:panel.querySelector('.rank-labels')!.getBoundingClientRect().right,
+      panelRight:panel.getBoundingClientRect().right,
     }));
     expect(geometry.font).toBeGreaterThanOrEqual(17);
     expect(geometry.board).toBeGreaterThanOrEqual(260);
+    expect(geometry.rankRight).toBeLessThanOrEqual(geometry.panelRight-1);
   }
   await page.getByRole('button', { name: 'メニュー', exact: true }).click();
   await expect(page.getByLabel('配色')).toBeVisible();
@@ -370,10 +382,9 @@ test('スマホは保存済み局数があっても1局で開き、主要操作�
   await expect(panels).toHaveCount(2);
   await page.reload();
   await expect(panels).toHaveCount(1);
-  await panels.getByRole('button', { name: '操作', exact: true }).click();
-  await panels.getByRole('button', { name: '盤面反転', exact: true }).click();
+  await panels.getByRole('button', { name: '反転', exact: true }).click();
   await expect(panels.locator('.hand.back')).toHaveAttribute('aria-label', '先手の持駒');
-  await panels.getByRole('button', { name: '棋譜を表示' }).click();
+  await panels.getByRole('button', { name: '棋譜を開く' }).click();
   await expect(panels.getByRole('list', { name: '棋譜', exact: true })).toBeVisible();
   await page.goto(`${basePath}?boards=2`);
   await expect(panels).toHaveCount(2);
@@ -393,7 +404,7 @@ test('スマホで解析を準備する再読み込みでは選択した2局を�
     await page.getByRole('button', { name: 'メニュー', exact: true }).click();
     await page.getByRole('button', { name: '2局' }).click();
     await expect(panels).toHaveCount(2);
-    await panels.first().locator('.analysis-lines summary').click();
+    await panels.first().getByRole('button',{name:'候補手・読み筋を開く'}).click();
     await panels.first().getByRole('button', { name: '端末で解析 OFF', exact: true }).click();
     await expect(panels.first().locator('.evaluation-status')).toHaveText('解析完了', { timeout: 45_000 });
     await expect(panels).toHaveCount(2);
@@ -434,19 +445,22 @@ test('過去対局を選び、手動移動・再生・棋譜クリックを操�
   await page.locator('.archive-list > button').first().click();
 
   const panel = page.locator('.game-panel').first();
-  await expect(panel.locator('.top-control-shelf')).toBeVisible();
-  await expect(panel.getByText(/20手 \/ 20手/)).toBeVisible();
+  await expect(panel.locator('.board-controls')).toBeVisible();
+  await expect(panel.getByLabel('現在手数')).toHaveText('20 / 20手');
   await panel.getByRole('button', { name: '1手戻る' }).click();
-  await expect(panel.getByText(/19手 \/ 20手/)).toBeVisible();
+  await expect(panel.getByLabel('現在手数')).toHaveText('19 / 20手');
+  await openPanelTools(panel);
   await panel.getByRole('button', { name: '最初' }).click();
-  await panel.getByText('詳細設定', { exact: true }).click();
+  await panel.locator('.player-side').first().click();
+  await page.getByRole('button',{name:'設定を開く',exact:true}).click();
   await panel.getByLabel('任意再生速度（秒）').fill('0.1');
+  await panel.getByRole('button',{name:'閉じる',exact:true}).click();
   await panel.getByRole('button', { name: '再生' }).click();
-  await expect(panel.getByText(/1手 \/ 20手/)).toBeVisible({ timeout: 2_000 });
-  await panel.getByRole('button', { name: /棋譜を表示/ }).click();
+  await expect(panel.getByLabel('現在手数')).toHaveText('1 / 20手',{ timeout: 2_000 });
+  await panel.getByRole('button', { name: '棋譜を開く' }).click();
   await expect(panel.locator('.move-list')).toContainText(/▲|△/);
   await panel.getByRole('button', { name: /^5\./ }).click();
-  await expect(panel.getByText(/5手 \/ 20手/)).toBeVisible();
+  await expect(panel.getByLabel('現在手数')).toHaveText('5 / 20手');
 });
 
 test('盤面反転と設定をlocalStorageから復元する', async ({ page }) => {
@@ -456,7 +470,8 @@ test('盤面反転と設定をlocalStorageから復元する', async ({ page }) 
   const firstCell = firstPanel.getByRole('gridcell').first();
   await expect(firstPanel.locator('.hand').first()).toHaveAttribute('aria-label', '後手の持駒');
   await expect(firstCell).toHaveAttribute('aria-label', /^91/);
-  await firstPanel.getByRole('button', { name: '盤面反転' }).click();
+  await openPanelTools(firstPanel);
+  await firstPanel.getByRole('button', { name: '反転' }).click();
   await expect(firstCell).toHaveAttribute('aria-label', /^19/);
   await expect(firstPanel.locator('.hand').first()).toHaveAttribute('aria-label', '先手の持駒');
   await page.getByRole('button', { name: '2局' }).click();

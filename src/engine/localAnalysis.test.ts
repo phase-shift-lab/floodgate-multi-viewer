@@ -114,4 +114,30 @@ describe('shared local analysis scheduling', () => {
     expect(WorkerStub.instances).toHaveLength(1);
     cancelCached(); vi.advanceTimersByTime(500);
   });
+
+  it.each([1000,3000,5000,10000] as const)('uses %sms and waits duration + 5 seconds',async(milliseconds)=>{
+    const service=new LocalAnalysis(), update=vi.fn();
+    const cancel=service.request('study','pos','+',update,{milliseconds}); await Promise.resolve();
+    const worker=WorkerStub.instances[0]; worker.emit({type:'ready'});
+    expect(worker.commands.at(-1)).toBe(`go movetime ${milliseconds}`);
+    vi.advanceTimersByTime(milliseconds+4999); expect(worker.terminated).toBe(false);
+    vi.advanceTimersByTime(1); expect(worker.terminated).toBe(true); expect(update.mock.lastCall?.[0].phase).toBe('error');
+    cancel(); vi.advanceTimersByTime(500);
+  });
+  it('duration caches are separate and explicit reanalysis bypasses cache',async()=>{
+    const service=new LocalAnalysis(), update=vi.fn();
+    const a=service.request('a','pos','+',update,{milliseconds:1000}); await Promise.resolve(); const w=WorkerStub.instances[0]; w.emit({type:'ready'});
+    w.emit({type:'line',line:'info depth 4 score cp 20 pv 7g7f'}); w.emit({type:'line',line:'bestmove 7g7f'}); a();
+    const b=service.request('b','pos','+',update,{milliseconds:10000}); await Promise.resolve(); expect(w.commands.at(-1)).toBe('go movetime 10000');
+    w.emit({type:'line',line:'bestmove 7g7f'}); b();
+    const c=service.request('c','pos','+',update,{milliseconds:1000,bypassCache:true}); await Promise.resolve(); expect(w.commands.at(-1)).toBe('go movetime 1000');
+    expect(w.commands.filter((s)=>s.startsWith('go'))).toHaveLength(3); c(); vi.advanceTimersByTime(500);
+  });
+  it('stop timeout terminates worker and explicit retry is needed after failure',async()=>{
+    const service=new LocalAnalysis(), update=vi.fn();
+    service.request('a','pos','+',update); await Promise.resolve(); const w=WorkerStub.instances[0]; w.emit({type:'ready'});
+    service.stopAll(); vi.advanceTimersByTime(2000); expect(w.terminated).toBe(true);
+    const cancel=service.request('b','other','+',update); await Promise.resolve(); expect(WorkerStub.instances).toHaveLength(1); cancel();
+    service.retry(); const c=service.request('c','other','+',update); await Promise.resolve(); expect(WorkerStub.instances).toHaveLength(2); c(); vi.advanceTimersByTime(500);
+  });
 });

@@ -1,0 +1,131 @@
+import { DetailPanel, type DetailTab } from './DetailPanel';
+import { BoardSurface, BoardControls } from './BoardSurface';
+import { MoveList } from './MoveList';
+import { loadGame } from '../data/client';
+import { shareUrl } from '../data/preferences';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, type ReactNode } from 'react';
+import { formatMove } from '../domain/csa';
+import { legalMoves } from '../domain/studyRules';
+import { addStudyMove, branchNodes, navigateStudy, persistStudy, STUDY_TIMES, studyPosition, type StudySeconds, type StudySession } from '../domain/studySession';
+import type { Move, ParsedGame } from '../domain/types';
+import { prepareAnalysis, retryAnalysisPreparation } from '../engine/isolation';
+import { localAnalysis } from '../engine/localAnalysis';
+import { playPieceSound } from '../data/pieceSound';
+import { LocalEvaluation } from './LocalEvaluation';
+import { ShogiBoard } from './ShogiBoard';
+
+export interface ReturnToSource { ply?: number; game?: ParsedGame }
+interface Props { session: StudySession; onChange: (s: StudySession) => void; onReturn: (target?: ReturnToSource) => Promise<void>; sound: boolean; onSound: () => void; context?: ReactNode; settingsRequest?: number }
+export function StudyView({ session, onChange, onReturn, sound, onSound, context, settingsRequest }: Props) {
+  const [dialogOpen,setDialogOpen] = useState(false);
+  const [detailTab,setDetailTab] = useState<DetailTab>('record');
+  const [recordTab,setRecordTab] = useState<'source'|'branches'>('branches');
+  const branchList = useRef<HTMLDivElement>(null);
+  const branchListActive=dialogOpen && detailTab === 'record' && recordTab === 'branches';
+  useEffect(() => {
+    if (!branchListActive) return;
+    const frame=requestAnimationFrame(() => branchList.current?.querySelector<HTMLElement>('[aria-current="step"]')?.scrollIntoView({block:'center'}));
+    return () => cancelAnimationFrame(frame);
+  },[branchListActive]);
+  const [detailsTarget,setDetailsTarget] = useState<HTMLDivElement | null>(null);
+  const baselineGame = session.watch.slots.find(slot => slot.summary.id === session.game.id)?.game ?? session.game;
+  const [sourceGame,setSourceGame] = useState(baselineGame);
+  const [liveMessage,setLiveMessage] = useState('');
+  useEffect(() => {
+    if (!baselineGame.live) return;
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      let live = true;
+      try {
+        const result = await loadGame(baselineGame,controller.signal);
+        if (controller.signal.aborted) return;
+        if (!result.fixture) {
+          setSourceGame(current => result.game.moveList.length >= current.moveList.length ? result.game : current);
+          setLiveMessage(''); live=result.game.live;
+        } else setLiveMessage('新着確認は一時停止中');
+      } catch { if (!controller.signal.aborted) setLiveMessage('新着を確認できませんでした'); }
+      if (!controller.signal.aborted && live) timer=setTimeout(poll,document.hidden ? 120_000 : 30_000);
+    };
+    timer=setTimeout(poll,30_000);
+    return () => { controller.abort(); clearTimeout(timer); };
+  }, [baselineGame]);
+  const [selected,setSelected] = useState<string>();
+  const [promotion,setPromotion] = useState<Move[]>();
+  const [message,setMessage] = useState('');
+  const [requestId,setRequestId] = useState(0);
+  const [leaving,setLeaving] = useState(false);
+  const inputLock = useRef(false);
+  const { board,position,terminal } = useMemo(() => studyPosition(session),[session]);
+  const moves = useMemo(() => terminal ? [] : legalMoves(board),[board,terminal]);
+  const node = session.nodes[session.current];
+  const path = branchNodes(session);
+  const commit = (next: StudySession): boolean => {
+    try { onChange(persistStudy(next)); setMessage(''); return true; }
+    catch (error) { setMessage(String(error instanceof Error ? error.message : error)); return false; }
+  };
+  const cancelSelection = useCallback(() => { setPromotion(undefined); setSelected(undefined); inputLock.current=false; },[]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') cancelSelection(); };
+    window.addEventListener('keydown',escape); return () => window.removeEventListener('keydown',escape);
+  },[cancelSelection]);
+  const add = (move: Move) => {
+    if (inputLock.current || leaving) return;
+    inputLock.current=true;
+    try { if (commit(addStudyMove(session,move))) { playPieceSound(sound); setRequestId(0); cancelSelection(); } }
+    catch (error) { setMessage((error as Error).message); }
+    finally { inputLock.current=false; }
+  };
+  const selectSquare = (square: string) => {
+    if (promotion || leaving || terminal) return;
+    if (square === selected) { cancelSelection(); return; }
+    if (board.squares[square]?.side === board.turn) { setSelected(square); setMessage(''); return; }
+    const options = moves.filter((move) => move.to === square && (selected?.startsWith('hand:') ? move.from === '00' && move.piece === selected.slice(5) : move.from === selected));
+    if (!options.length) { setMessage(selected ? 'そこには指せません。強調された升を選んでください' : '手番側の駒を選んでください'); return; }
+    if (options.length > 1) setPromotion(options);
+    else add(options[0]);
+  };
+  const navigate = (id: string) => { if (commit(navigateStudy(session,id))) { cancelSelection(); setRequestId(0); } };
+  const prepare = useCallback(async (signal?: AbortSignal) => { persistStudy(session); return prepareAnalysis(session.watch,session.id,signal); },[session]);
+  const retry = () => {
+    if (!commit({...session,enabled:true,stopped:false})) return;
+    retryAnalysisPreparation(); localAnalysis.retry(); setRequestId((id) => id+1);
+  };
+  const returnToWatch = async (target?: ReturnToSource) => {
+    if (leaving) return;
+    setLeaving(true); cancelSelection();
+    try { await onReturn(target); } catch (error) { setMessage((error as Error).message); setLeaving(false); }
+  };
+  const targets = [...new Set(moves.filter((m) => selected?.startsWith('hand:') ? m.from === '00' && m.piece === selected.slice(5) : m.from === selected).map((m) => m.to))];
+
+  const timeline = ['root',...path.map(item => item.id)];
+  let next = node.preferred ?? node.children[0];
+  while (next && !timeline.includes(next) && timeline.length < 513) { timeline.push(next); const child=session.nodes[next]; next=child.preferred ?? child.children[0]; }
+  const openDetails = (tab: DetailTab) => { if (promotion || leaving) return; cancelSelection(); setDetailTab(tab); setDialogOpen(true); };
+  const requestSettings=useEffectEvent(() => openDetails('settings'));
+  const lastSettingsRequest=useRef(settingsRequest);
+  useEffect(() => { if (settingsRequest && settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=settingsRequest; },[settingsRequest]);
+  const newCount = Math.max(0,sourceGame.moveList.length-baselineGame.moveList.length);
+  const pickBranch = (id: string) => { if (commit(navigateStudy(session,id))) { cancelSelection(); setRequestId(0); setDialogOpen(false); } };
+  const share = () => {
+    const url=shareUrl({game:session.game.id,ply:session.origin,view:session.game.live?'live':'archive',boards:1,orientation:session.flipped?'white':'black'});
+    void navigator.clipboard.writeText(url).then(()=>setMessage('元対局のURLをコピーしました。変化は含みません。')).catch(()=>setMessage(url));
+  };
+  return <BoardSurface studying label="検討盤" context={context ?? <div className="players study-player-fallback"><strong>▲ {session.game.black} △ {session.game.white}</strong><button onClick={share}>共有</button></div>}
+    caption={<strong className="study-badge">検討中 · 変化{path.length}手</strong>}
+    evaluation={<LocalEvaluation board={board} position={position} enabled={session.enabled} onEnabledChange={enabled => commit({...session,enabled,stopped:false})} onPrepare={prepare} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} study milliseconds={session.seconds*1000 as 1000|3000|5000|10000} requestId={requestId} stopped={session.stopped || Boolean(terminal) || leaving} />}
+    board={<ShogiBoard state={board} flipped={session.flipped} lastMove={node.move ?? session.game.moveList.at(-1)} selected={selected} legalTargets={targets} locked={Boolean(promotion) || leaving || Boolean(terminal)} onSquare={selectSquare} onHand={(side,code) => { if (side === board.turn && !promotion) { setSelected(selected === 'hand:'+code ? undefined : 'hand:'+code); setMessage(''); } }} />}
+    status={<><span>{terminal ?? (promotion ? '成る・成らないを選んでください' : selected ? '移動可能な升 '+targets.length+'か所' : '手番側の駒・持駒を選んでください')}</span>{selected && !promotion && <button onClick={cancelSelection}>選択取消</button>}{newCount > 0 && <strong className="study-new-moves">本譜に新着{newCount}手</strong>}{liveMessage && <small>{liveMessage}</small>}</>}
+    controls={<BoardControls onFlip={() => { cancelSelection(); commit({...session,flipped:!session.flipped}); }} onStudy={() => void returnToWatch()} studyLabel="本譜へ" current={node.move ? formatMove(node.move) : '検討の起点'} ply={path.length} max={timeline.length-1} onPrevious={() => { if (node.parent) navigate(node.parent); }} onNext={() => { const id=node.preferred ?? node.children[0]; if (id) navigate(id); }} onCurrent={() => openDetails('record')} onSeek={ply => navigate(timeline[ply])} action="起点へ" onAction={() => navigate('root')} previousDisabled={!node.parent} nextDisabled={!node.children.length} disabled={Boolean(promotion) || leaving} />}
+    footer={<><div className="connection">検討はこのタブに2時間保存 · 本譜{session.origin}手目から</div>{message && <div className="study-message" role="alert">{message}</div>}{promotion && <><div className="promotion-choice" role="dialog" aria-modal="true" aria-label="成りの選択" onKeyDown={event => {
+      if (event.key !== 'Tab') return; const buttons=[...event.currentTarget.querySelectorAll<HTMLButtonElement>('button')]; const index=buttons.indexOf(document.activeElement as HTMLButtonElement); event.preventDefault(); buttons[(index+(event.shiftKey ? buttons.length-1 : 1))%buttons.length]?.focus();
+    }}><strong>成りますか？</strong>{promotion.map((move,i) => <button key={move.piece} autoFocus={i===0} onClick={() => add(move)}>{move.piece === board.squares[move.from]?.code ? '成らない' : '成る'}</button>)}<button onClick={cancelSelection}>取消</button></div><div className="promotion-backdrop" aria-hidden="true" /></>}</>}
+    modal={<DetailPanel open={dialogOpen} title="局面の詳細" tab={detailTab} onTabChange={setDetailTab} onClose={() => setDialogOpen(false)}>
+      <div hidden={detailTab !== 'record'}><div className="record-kind" role="group" aria-label="棋譜の種類"><button aria-pressed={recordTab === 'source'} onClick={() => setRecordTab('source')}>本譜</button><button aria-pressed={recordTab === 'branches'} onClick={() => setRecordTab('branches')}>検討手順</button></div>
+        <div hidden={recordTab !== 'source'}><p className="dialog-note">本譜の手を選ぶと、変化を保存して本譜へ戻ります。</p><MoveList game={sourceGame} ply={session.origin} active={dialogOpen && detailTab === 'record' && recordTab === 'source'} onPick={ply => void returnToWatch({ply,game:sourceGame})} /></div>
+        <div ref={branchList} hidden={recordTab !== 'branches'} className="study-history"><button aria-current={node.id === 'root' ? 'step' : undefined} onClick={() => pickBranch('root')}>起点（本譜{session.origin}手目）</button><ol>{Object.values(session.nodes).filter(item => item.move).map(item => <li key={item.id}><button aria-current={node.id === item.id ? 'step' : undefined} onClick={() => pickBranch(item.id)}><small>{item.parent === 'root' ? '起点' : '枝'+Object.keys(session.nodes).indexOf(item.parent!)} → </small>{formatMove(item.move!)} <small>枝{Object.keys(session.nodes).indexOf(item.id)}</small></button></li>)}</ol></div>
+      </div>
+      <div hidden={detailTab !== 'analysis'} ref={setDetailsTarget} className="unified-analysis" />
+      <div hidden={detailTab !== 'settings'} className="board-settings"><strong>つようら王11micro · 先手基準</strong><label>解析時間<select aria-label="解析時間" value={session.seconds} onChange={event => { setRequestId(0); commit({...session,seconds:Number(event.target.value) as StudySeconds,stopped:false}); }}>{STUDY_TIMES.map(value => <option key={value} value={value}>{value}秒</option>)}</select></label><button aria-pressed={session.enabled} onClick={() => { if (!session.enabled) { retryAnalysisPreparation(); localAnalysis.retry(); } commit({...session,enabled:!session.enabled,stopped:false}); }}>解析 {session.enabled ? 'ON' : 'OFF'}</button><button disabled={Boolean(terminal) || leaving} onClick={retry}>再解析</button><button disabled={session.stopped || leaving} onClick={() => commit({...session,stopped:true})}>停止</button><button aria-pressed={sound} onClick={onSound}>駒音 {sound ? 'ON' : 'OFF'}</button><button disabled={Boolean(promotion) || leaving} onClick={() => { if (confirm('検討の変化をすべて消去して起点に戻りますか？')) { if (commit({...session,current:'root',nodes:{root:{...session.nodes.root,children:[],preferred:undefined}},stopped:false})) { cancelSelection(); setRequestId(0); } } }}>変化を全消去</button><p>同一局面4回で停止。公式の勝敗裁定は行いません。10秒解析はCPU・電池を多く使います。</p></div>
+    </DetailPanel>} />;
+}

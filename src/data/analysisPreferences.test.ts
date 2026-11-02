@@ -20,4 +20,10 @@ describe('automatic analysis preferences', () => {
     expect(loadAnalysisEnabled('b')).toBe(true);
     expect(loadAnalysisEnabled('a')).toBe(false);
   });
+  it('explicit persisted ON wins over a stale session fallback after navigation', () => {
+    disableAutomaticAnalysis(); saveAnalysisEnabled('a',true);
+    sessionStorage.setItem('fgmv:analysis-disabled','1');
+    expect(loadAnalysisEnabled('a')).toBe(true);
+    localStorage.clear(); expect(loadAnalysisEnabled('a')).toBe(false);
+  });
 });

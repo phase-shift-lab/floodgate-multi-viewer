@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DetailPanel, type DetailTab } from './DetailPanel';
+import { BoardSurface, BoardControls } from './BoardSurface';
+import { MoveList } from './MoveList';
+import { ToolsMenu } from './ToolsMenu';
+import { StudyView, type ReturnToSource } from './StudyView';
+import type { StudySession } from '../domain/studySession';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { loadGame, type GameStatSummary } from '../data/client';
 import { shareUrl } from '../data/preferences';
-import { boardAt, formatFinalReason, formatMoveInGame, formatMoveSource } from '../domain/csa';
+import { boardAt, formatMoveInGame } from '../domain/csa';
 import { updateLivePosition } from '../domain/liveFollow';
 import { clampPlaybackSeconds, nextPlaybackPly, playbackDelayMs } from '../domain/playback';
 import { rateLabel } from '../domain/selection';
@@ -11,6 +17,8 @@ import { LocalEvaluation } from './LocalEvaluation';
 import type { PanelSnapshot } from '../engine/isolation';
 import { toEnginePosition } from '../domain/localEvaluation';
 import { loadAnalysisEnabled, saveAnalysisEnabled } from '../data/analysisPreferences';
+import { playPieceSound } from '../data/pieceSound';
+import { positionKey, strictInitial } from '../domain/studyRules';
 
 const SPEEDS = [0.25, 0.5, 1, 2, 3, 5, 10];
 
@@ -36,18 +44,34 @@ interface Props {
   onOrientationChange: (flipped: boolean) => void;
   initialAnalysisEnabled?: boolean;
   onAnalysisSnapshot?: (snapshot: PanelSnapshot) => void;
-  onPrepareAnalysis?: () => Promise<boolean>;
+  onPrepareAnalysis?: (signal?: AbortSignal) => Promise<boolean>;
+  suspended?: boolean;
+  initialGame?: ParsedGame;
+  onResumeStudy?: () => void;
+  onStudy?: (game: ParsedGame, ply: number, snapshot: PanelSnapshot) => void;
+  sound?: boolean;
+  study?: StudySession;
+  onStudyChange?: (session: StudySession) => void;
+  onReturnStudy?: (target?: ReturnToSource) => Promise<void>;
+  onSound?: () => void;
+  onDialogChange?: (id: string, open: boolean) => void;
+  settingsRequest?: number;
 }
 
 export function GamePanel(props: Props) {
   const onViewed = props.onViewed;
-  const [game, setGame] = useState<ParsedGame>();
+
+  const [game, setGame] = useState<ParsedGame | undefined>(props.initialGame);
+  const gameRef = useRef(game);
+  useEffect(() => { gameRef.current = game; },[game]);
   const [ply, setPly] = useState(props.initialPly ?? Number.MAX_SAFE_INTEGER);
   const [followingLatest, setFollowingLatest] = useState(() => props.initialFollowingLatest
     ?? (props.initialPly === undefined || props.initialPly === Number.MAX_SAFE_INTEGER));
   const [flipped, setFlipped] = useState(props.defaultFlipped);
-  const [movesOpen, setMovesOpen] = useState(false);
-  const [actionsOpen, setActionsOpen] = useState(false);
+  const [dialogOpen,setDialogOpen] = useState(false);
+  const [detailTab,setDetailTab] = useState<DetailTab>('record');
+  const [detailsTarget,setDetailsTarget] = useState<HTMLDivElement | null>(null);
+  const heldFollowing = useRef<boolean | undefined>(undefined);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(props.defaultSpeed);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
@@ -60,7 +84,7 @@ export function GamePanel(props: Props) {
   const lastPly = useRef(ply);
   const followingRef = useRef(followingLatest);
   const gameLengthRef = useRef(0);
-  const currentMoveRef = useRef<HTMLButtonElement | null>(null);
+
   const changeFollowing = useCallback((following: boolean) => {
     followingRef.current = following;
     setFollowingLatest(following);
@@ -75,6 +99,7 @@ export function GamePanel(props: Props) {
   }, [ply]);
 
   useEffect(() => {
+    if (props.suspended) return;
     let timeout: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     const poll = async () => {
@@ -83,11 +108,13 @@ export function GamePanel(props: Props) {
         if (controller.signal.aborted) return;
         const failureCount = result.fixture ? failures.current + 1 : 0;
         failures.current = failureCount;
-        const nextLength = result.game.moveList.length;
+        const fetchedGame = result.fixture && gameRef.current ? gameRef.current : result.game;
+        const nextLength = fetchedGame.moveList.length;
         const update = updateLivePosition(lastPly.current, gameLengthRef.current, nextLength, followingRef.current);
-        setGame(result.game);
+        setGame(fetchedGame);
         setPly(update.ply);
         const hasNewMoves = gameLengthRef.current > 0 && update.hasNewMoves;
+        if (followingRef.current && gameLengthRef.current > 0 && nextLength > gameLengthRef.current) playPieceSound(Boolean(props.sound));
         setNewMoves((current) => followingRef.current ? false : current || hasNewMoves);
         lastPly.current = update.ply;
         gameLengthRef.current = nextLength;
@@ -102,30 +129,30 @@ export function GamePanel(props: Props) {
     };
     void poll();
     return () => { controller.abort(); if (timeout) clearTimeout(timeout); };
-  }, [props.summary]);
+  }, [props.summary, props.suspended, props.sound]);
 
   const maxPly = game?.moveList.length ?? 0;
   const safePly = Math.min(ply, maxPly);
   const board = useMemo(() => game ? boardAt(game, safePly) : undefined, [game, safePly]);
   const enginePosition = useMemo(() => game ? toEnginePosition(game, safePly) : '', [game, safePly]);
+  const studyUnavailable = useMemo(() => {
+    if (!game) return '棋譜を取得中です';
+    try { if (positionKey(strictInitial(game.sourceText)) !== positionKey(game.initial)) return '初期局面と棋譜が一致しません'; }
+    catch (error) { return (error as Error).message; }
+  },[game]);
   const onAnalysisSnapshot = props.onAnalysisSnapshot;
   useEffect(() => {
-    onAnalysisSnapshot?.({ summary: props.summary, pinned: props.pinned, ply: game ? safePly : ply, flipped, enabled: analysisEnabled, followingLatest });
-  }, [onAnalysisSnapshot, props.summary, props.pinned, safePly, ply, game, flipped, analysisEnabled, followingLatest]);
-  const moveLabels = useMemo(() => game ? game.moveList.map((move) => ({
-    move,
-    label: formatMoveInGame(game, move.index),
-    source: formatMoveSource(move),
-  })) : [], [game]);
-  const finalReason = useMemo(() => game ? formatFinalReason(game) : undefined, [game]);
+    onAnalysisSnapshot?.({ summary: props.summary, pinned: props.pinned, ply: game ? safePly : ply, flipped, enabled: analysisEnabled, followingLatest, speed, game });
+  }, [onAnalysisSnapshot, props.summary, props.pinned, safePly, ply, game, flipped, analysisEnabled, followingLatest, speed]);
 
   useEffect(() => {
-    if (!playing || !game) return;
+    if (!playing || !game || props.suspended) return;
     if (safePly >= maxPly) return;
     const timer = setTimeout(() => {
       const next = nextPlaybackPly(lastPly.current, maxPly);
       lastPly.current = next;
       setPly(next);
+      playPieceSound(Boolean(props.sound));
       changeFollowing(next >= maxPly);
       if (next >= maxPly) {
         setPlaying(false);
@@ -133,28 +160,24 @@ export function GamePanel(props: Props) {
       }
     }, playbackDelayMs(speed));
     return () => clearTimeout(timer);
-  }, [playing, game, safePly, maxPly, speed, changeFollowing]);
+  }, [playing, game, safePly, maxPly, speed, changeFollowing, props.suspended, props.sound]);
 
-  const moveTo = useCallback((next: number, keepPlaying = false) => {
+  const moveTo = useCallback((next: number, resume = false) => {
     const clamped = Math.max(0, Math.min(maxPly, next));
-    if (!keepPlaying) setPlaying(false);
+    setPlaying(false);
     setPly(clamped);
+    if (clamped !== lastPly.current) playPieceSound(Boolean(props.sound));
     lastPly.current = clamped;
-    changeFollowing(clamped >= maxPly);
+    changeFollowing(resume);
     if (clamped >= maxPly) setNewMoves(false);
-  }, [maxPly, changeFollowing]);
-
-  useEffect(() => {
-    if (!movesOpen) return;
-    currentMoveRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [movesOpen, safePly]);
+  }, [maxPly, changeFollowing, props.sound]);
 
   const onKeyDown = (event: React.KeyboardEvent) => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+    if ((event.target as HTMLElement).closest('button, summary, input, select, a')) return;
     if (event.key === 'ArrowLeft') moveTo(safePly - 1);
     else if (event.key === 'ArrowRight') moveTo(safePly + 1);
     else if (event.key === 'Home') moveTo(0);
-    else if (event.key === 'End') moveTo(maxPly);
+    else if (event.key === 'End') moveTo(maxPly,true);
     else if (event.key === ' ') setPlaying((value) => !value);
     else return;
     event.preventDefault();
@@ -166,95 +189,65 @@ export function GamePanel(props: Props) {
     catch { setShareMessage(url); }
   };
 
-  return (
-    <article className={`game-panel ${props.expanded ? 'expanded' : ''}`} tabIndex={0} onKeyDown={onKeyDown} aria-label={`${props.summary.black} 対 ${props.summary.white}`}>
-      <header className="game-header">
-        <div className="game-selector-row">
-          <select aria-label="表示する対局" value={props.summary.id} onChange={(event) => props.onSelect(event.target.value)}>
-            {props.games.map((item) => <option key={item.id} value={item.id}>{item.live ? '●' : '○'} {item.black} vs {item.white}</option>)}
-          </select>
-          <span className={`badge ${props.summary.live && !props.fixture ? 'live' : ''}`}>{props.fixture ? 'FIXTURE' : props.summary.live ? 'LIVE' : '終局'}</span>
-          <button type="button" aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
-        </div>
-      </header>
+  const snapshot = (): PanelSnapshot => ({ summary:props.summary, pinned:props.pinned, ply:safePly, flipped, enabled:analysisEnabled, followingLatest, speed, game });
 
-      <div className="players">
-        <div><button className="star" aria-label={`${props.summary.black}をお気に入り${props.favoriteNames.includes(props.summary.black) ? '解除' : '登録'}`} onClick={() => props.onFavorite(props.summary.black)}>{props.favoriteNames.includes(props.summary.black) ? '★' : '☆'}</button><strong title={props.summary.black}>▲ {props.summary.black}</strong><span>{rateLabel(game?.blackRate ?? props.summary.blackRate)}</span></div>
-        <div><button className="star" aria-label={`${props.summary.white}をお気に入り${props.favoriteNames.includes(props.summary.white) ? '解除' : '登録'}`} onClick={() => props.onFavorite(props.summary.white)}>{props.favoriteNames.includes(props.summary.white) ? '★' : '☆'}</button><strong title={props.summary.white}>△ {props.summary.white}</strong><span>{rateLabel(game?.whiteRate ?? props.summary.whiteRate)}</span></div>
-      </div>
+  const openDetails = (tab: DetailTab) => {
+    setPlaying(false);
+    if (!dialogOpen) { heldFollowing.current=followingRef.current; changeFollowing(false); }
+    setDetailTab(tab); setDialogOpen(true); props.onDialogChange?.(props.summary.id,true);
+  };
+  const closeDetails = (restore = true) => {
+    setDialogOpen(false); props.onDialogChange?.(props.summary.id,false);
+    if (restore && heldFollowing.current !== undefined) {
+      changeFollowing(heldFollowing.current);
+      if (heldFollowing.current) { const latest=gameRef.current?.moveList.length ?? maxPly; setPly(latest); lastPly.current=latest; setNewMoves(false); }
+    }
+    heldFollowing.current=undefined;
+  };
+  const onDialogChange=props.onDialogChange, summaryId=props.summary.id;
+  useEffect(() => () => onDialogChange?.(summaryId,false),[onDialogChange,summaryId]);
+  const requestSettings=useEffectEvent(() => { if (!props.study) openDetails('settings'); });
+  const lastSettingsRequest=useRef(props.settingsRequest);
+  useEffect(() => { if (props.settingsRequest && props.settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=props.settingsRequest; },[props.settingsRequest]);
+  const gameMenu = <ToolsMenu disabled={Boolean(props.study)} label={<span>{props.fixture ? 'FIXTURE' : props.summary.live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
+      <label>表示する対局<select aria-label="表示する対局" value={props.summary.id} onChange={event => props.onSelect(event.target.value)}>{props.games.map(item => <option key={item.id} value={item.id}>{item.black} vs {item.white}</option>)}</select></label>
+      <button aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
+      {props.onResumeStudy && <button onClick={props.onResumeStudy}>前の検討を再開</button>}
+      <button onClick={() => moveTo(0)}>最初</button><button onClick={() => moveTo(maxPly,true)}>最新へ</button>
+      <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
+      <p>{safePly}手 / {maxPly}手 · {board?.turn === '+' ? '先手番' : '後手番'} · {game?.result ?? (game?.live ? '対局中' : '結果不明')}</p>
+      <p>観戦 {formatPeoplePerDay(props.stats?.viewsToday)} · 同時 {formatPeople(props.stats?.concurrent)}</p>
+    </ToolsMenu>;
+  const context = <div className="players">
+        <button className="context-share" onClick={copyShare}>共有</button>
+        {shareMessage && <output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}
+        <div><span className="player-side" aria-label="先手">▲</span><strong title={props.summary.black}>{props.summary.black}</strong><span className="player-rating">{rateLabel(game?.blackRate ?? props.summary.blackRate)}</span><button className="star" aria-label={`${props.summary.black}をお気に入り${props.favoriteNames.includes(props.summary.black) ? '解除' : '登録'}`} onClick={() => props.onFavorite(props.summary.black)}>{props.favoriteNames.includes(props.summary.black) ? '★' : '☆'}</button></div>
+        <div><span className="player-side" aria-label="後手">△</span><strong title={props.summary.white}>{props.summary.white}</strong><span className="player-rating">{rateLabel(game?.whiteRate ?? props.summary.whiteRate)}</span><button className="star" aria-label={`${props.summary.white}をお気に入り${props.favoriteNames.includes(props.summary.white) ? '解除' : '登録'}`} onClick={() => props.onFavorite(props.summary.white)}>{props.favoriteNames.includes(props.summary.white) ? '★' : '☆'}</button></div>
+      </div>;
+  if (props.study && props.onStudyChange && props.onReturnStudy) return <StudyView settingsRequest={props.settingsRequest} session={props.study} onChange={props.onStudyChange} onReturn={props.onReturnStudy} sound={Boolean(props.sound)} onSound={props.onSound ?? (() => {})} context={context} />;
 
-      <div className="meta-row" aria-live="polite">
-        <span>{safePly}手 / {maxPly}手</span>
-        <span>手番 {board?.turn === '+' ? '先手' : '後手'}</span>
-        <span>{game?.result ?? (game?.live ? '対局中' : '結果不明')}</span>
-        <span className="stat-pill">観戦 <strong>{formatPeoplePerDay(props.stats?.viewsToday)}</strong></span>
-        <span className="stat-pill">同時 <strong>{formatPeople(props.stats?.concurrent)}</strong></span>
-      </div>
-
-      <div className="commentary-row">
-        <div className="last-move-text" aria-live="polite"><strong>直前手</strong><span>{safePly ? moveLabels[safePly - 1]?.label : '開始局面'}</span></div>
-        {board && props.onPrepareAnalysis && <LocalEvaluation board={board} position={enginePosition} enabled={analysisEnabled} onEnabledChange={changeAnalysisEnabled} onPrepare={props.onPrepareAnalysis} />}
-      </div>
-
-      {board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly - 1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
-
-      <div className="top-control-shelf">
-        {newMoves && <div className="new-moves">新しい指し手があります <button onClick={() => moveTo(maxPly)}>最新局面へ</button></div>}
-        <button className="mobile-actions-toggle" aria-expanded={actionsOpen} aria-controls={`actions-${props.summary.id}`} onClick={() => setActionsOpen((open) => !open)}>操作</button>
-        <div id={`actions-${props.summary.id}`} className={`panel-actions${actionsOpen ? ' is-open' : ''}`}>
-          <button onClick={() => setFlipped((value) => { const next = !value; props.onOrientationChange(next); return next; })}>盤面反転</button>
-          <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
-          <button aria-expanded={movesOpen} onClick={() => setMovesOpen((value) => !value)}>棋譜{movesOpen ? 'を閉じる' : 'を表示'}</button>
-          <button onClick={copyShare}>共有</button>
-        </div>
-        <div className="replay" aria-label="棋譜再生操作">
-          <button aria-label="最初" onClick={() => moveTo(0)}>⏮</button>
-          <button className="step-button" aria-label="1手戻る" onClick={() => moveTo(safePly - 1)}>◀</button>
-          <button aria-label={playing ? '停止' : '再生'} onClick={() => setPlaying((value) => !value)}>{playing ? '停止' : '再生'}</button>
-          <button className="step-button" aria-label="1手進む" onClick={() => moveTo(safePly + 1)}>▶</button>
-          <button aria-label="最後" onClick={() => moveTo(maxPly)}>⏭</button>
-          <input aria-label="手数" type="range" min="0" max={maxPly} value={safePly} onChange={(event) => moveTo(Number(event.target.value))} />
-          <span className="replay-status" aria-label="現在手数">{safePly} / {maxPly}手</span>
-        </div>
-        {shareMessage && <output className="sr-message">{shareMessage}</output>}
-        <details className="panel-details">
-          <summary>詳細設定</summary>
-          <div className="replay-settings">
-            <label>再生速度
-              <select value={SPEEDS.includes(speed) ? speed : 'custom'} onChange={(event) => {
-                if (event.target.value !== 'custom') { const value = Number(event.target.value); setSpeed(value); props.onSpeedChange(value); }
-              }}>
-                {SPEEDS.map((value) => <option key={value} value={value}>{value}秒</option>)}
-                <option value="custom">任意</option>
-              </select>
-            </label>
-            <label className="custom-speed">任意秒数<input aria-label="任意再生速度（秒）" type="number" min="0.1" max="60" step="0.1" value={speed} onChange={(event) => { const value = clampPlaybackSeconds(Number(event.target.value)); setSpeed(value); props.onSpeedChange(value); }} /></label>
-          </div>
-          {game?.evaluationsTrusted && <details className="evaluations"><summary>CSA評価値</summary><p>評価値の尺度はAI間で同じとは限りません。</p><ul>{game.moveList.filter((move) => move.evaluation !== undefined).map((move) => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
-        </details>
-        <div className="connection">
-          <span className={`dot ${connection}`} aria-hidden="true" />接続: {connectionLabel(connection)}
-          <span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span>
-          {connection === 'paused' && <span>更新停止（自動再試行中）</span>}
-        </div>
-      </div>
-
-      {movesOpen && game && <ol className="move-list" aria-label="棋譜">
-        {moveLabels.map(({ move, label, source }) => <li key={move.index}><button ref={safePly === move.index ? currentMoveRef : undefined} aria-current={safePly === move.index ? 'step' : undefined} title={source ? `移動元 ${source}` : undefined} onClick={() => moveTo(move.index)}>{move.index}. {label}{source ? ` ${source}` : ''}{move.time !== undefined ? ` (${move.time}秒)` : ''}</button></li>)}
-        {finalReason && <li className="move-result"><span>{game.moveList.length + 1}. {finalReason}</span></li>}
-      </ol>}
-    </article>
-  );
+  const settings = <div className="board-settings">
+    <label>再生速度<select value={SPEEDS.includes(speed) ? speed : 'custom'} onChange={event => { if (event.target.value !== 'custom') { const value=Number(event.target.value); setSpeed(value); props.onSpeedChange(value); } }}>{SPEEDS.map(value => <option key={value} value={value}>{value}秒</option>)}<option value="custom">任意</option></select></label>
+    <label>任意秒数<input aria-label="任意再生速度（秒）" type="number" min="0.1" max="60" step="0.1" value={speed} onChange={event => { const value=clampPlaybackSeconds(Number(event.target.value)); setSpeed(value); props.onSpeedChange(value); }} /></label>
+    <p>観戦の端末解析は約0.5秒ずつ順番に実行します。解析の切替・ライセンスは「読み筋」にあります。</p>
+    {props.onSound && <button aria-pressed={props.sound} onClick={props.onSound}>駒音 {props.sound ? 'ON' : 'OFF'}</button>}
+    {game?.evaluationsTrusted && <details><summary>CSA評価値</summary><p>AI間で尺度は同じとは限りません。</p><ul>{game.moveList.filter(move => move.evaluation !== undefined).map(move => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
+  </div>;
+  return <BoardSurface label={props.summary.black+' 対 '+props.summary.white} onKeyDown={onKeyDown}
+    context={context}
+    caption={gameMenu}
+    evaluation={board && props.onPrepareAnalysis && <LocalEvaluation board={board} position={enginePosition} enabled={analysisEnabled} onEnabledChange={changeAnalysisEnabled} onPrepare={props.onPrepareAnalysis} suspended={props.suspended} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} />}
+    board={board ? <ShogiBoard state={board} flipped={flipped} lastMove={safePly ? game?.moveList[safePly-1] : undefined} /> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
+    status={!followingLatest ? <><span>{newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中'}</span><button onClick={() => moveTo(maxPly,true)}>最新へ</button></> : <span>最新手に追従中</span>}
+    controls={<BoardControls onFlip={() => { setFlipped(!flipped); props.onOrientationChange(!flipped); }} onStudy={() => { if (game) { setPlaying(false); props.onStudy?.(game,safePly,snapshot()); } }} studyDisabled={!props.onStudy || Boolean(studyUnavailable)} studyTitle={studyUnavailable} current={safePly && game ? formatMoveInGame(game,safePly) : '開始局面'} ply={safePly} max={maxPly} onPrevious={() => moveTo(safePly-1)} onNext={() => moveTo(safePly+1)} onCurrent={() => openDetails('record')} onSeek={next => moveTo(next)} action={playing ? '停止' : '再生'} onAction={() => setPlaying(!playing)} disabled={!game} previousDisabled={safePly === 0} nextDisabled={safePly === maxPly} />}
+    footer={<div className="connection"><span className={'dot '+connection} aria-hidden="true" />接続: {connectionLabel(connection)}<span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span></div>}
+    modal={<DetailPanel open={dialogOpen} tab={detailTab} onTabChange={setDetailTab} onClose={() => closeDetails()}>
+      <div hidden={detailTab !== 'record'}>{game && <MoveList game={game} ply={safePly} active={dialogOpen && detailTab === 'record'} onPick={next => { moveTo(next); closeDetails(false); }} />}</div>
+      <div hidden={detailTab !== 'analysis'} ref={setDetailsTarget} className="unified-analysis" />
+      <div hidden={detailTab !== 'settings'}>{settings}</div>
+    </DetailPanel>} />;
 }
 
-function connectionLabel(state: ConnectionState): string {
-  return { connecting: '接続中', online: 'オンライン', stale: 'stale', offline: 'fixture', paused: '更新停止' }[state];
-}
-
-function formatPeoplePerDay(value: number | undefined): string {
-  return typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString('ja-JP')}人/日` : '-';
-}
-
-function formatPeople(value: number | undefined): string {
-  return typeof value === 'number' && Number.isFinite(value) ? `${value.toLocaleString('ja-JP')}人` : '-';
-}
+function connectionLabel(state: ConnectionState): string { return { connecting:'接続中',online:'オンライン',stale:'stale',offline:'fixture',paused:'更新停止' }[state]; }
+function formatPeoplePerDay(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人/日' : '-'; }
+function formatPeople(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人' : '-'; }
