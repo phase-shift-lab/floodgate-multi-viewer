@@ -3,12 +3,12 @@ import { base, count, disabledAnalysis, startStudy, tools } from './ui';
 
 test.beforeEach(async({page})=>{await disabledAnalysis(page);await page.goto(base);await page.locator('.shogi-board').first().waitFor();});
 
-test('five controls keep their order and touch targets on mobile and desktop, including study',async({page})=>{
+test('six controls keep their order and touch targets on mobile and desktop, including study',async({page})=>{
  test.setTimeout(60_000); // Four complete viewport flows also run on mobile WebKit.
  for(const width of [320,393,430,1440]) {
   await page.setViewportSize({width,height:900});await count(page,1);
   const panel=page.locator('.unified-panel');
-  await expect(panel.locator('.board-controls button')).toHaveText(['反転','再生','←','→','棋譜']);
+  await expect(panel.locator('.board-controls button')).toHaveText(['反転','再生','←','→','棋譜','解析']);
   await expect(panel.getByRole('button',{name:'操作 ▾',exact:true})).toHaveCount(0);
   const boxes=await panel.locator('.board-controls button').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}}));
   expect(new Set(boxes.map(b=>b.y)).size).toBe(1);
@@ -23,7 +23,7 @@ test('five controls keep their order and touch targets on mobile and desktop, in
   await panel.getByRole('button',{name:'閉じる',exact:true}).click();
   await expect(page.getByRole('button',{name:'設定を開く',exact:true})).toBeFocused();
   const study=await startStudy(page,panel);
-  await expect(study.locator('.board-controls button')).toHaveText(['反転','起点へ','←','→','棋譜']);
+  await expect(study.locator('.board-controls button')).toHaveText(['反転','起点へ','←','→','棋譜','解析']);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('button',{name:'設定を開く',exact:true}).click();await expect(study.getByLabel('解析時間')).toBeVisible();
   await study.getByRole('button',{name:'閉じる',exact:true}).click();await study.getByRole('button',{name:'本譜へ戻る'}).click();

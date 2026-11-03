@@ -6,6 +6,12 @@ function game(id: string, black: string, white: string, blackRate: number | unde
 }
 
 describe('featured game selection', () => {
+  it('prefers games with actual moves, including when a zero-ply group is larger',()=>{
+    const waiting={...game('waiting','A','B',5000,5000),moves:0};
+    const running={...game('running','C','D',3000,3000),moves:2};
+    expect(selectFeaturedGames([waiting,running],1)[0].id).toBe('running');
+    expect(selectFeaturedGames([waiting,{...waiting,id:'waiting2'}, {...running,group:'other'}],1)[0].id).toBe('running');
+  });
   it('excludes zero-move finished records but keeps genuine first-move waiting games',()=>{
     const ended={...game('ended','A','B',4000,4000,false),moves:0};
     const waiting={...game('waiting','C','D',3000,3000),moves:0};

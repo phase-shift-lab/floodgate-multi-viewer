@@ -5,6 +5,8 @@ import { createStudy, persistStudy, restoreStudy, savedStudyExists, type StudySe
 import { localAnalysis } from './engine/localAnalysis';
 import { loadPieceSound, playPieceSound, savePieceSound } from './data/pieceSound';
 import { loadAnalysisEnabled } from './data/analysisPreferences';
+import { CompletedGames } from './data/completedGames';
+import { initialGames } from './data/initialGames';
 import { GamePanel } from './components/GamePanel';
 import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
 import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
@@ -53,14 +55,7 @@ export default function App() {
   const [games, setGames] = useState<GameSummary[]>(() => analysisRecovery?.slots.map((slot) => slot.summary) ?? []);
   const [slots, setSlots] = useState<Slot[]>(() => analysisRecovery?.slots.map((slot) => ({ id: slot.summary.id, pinned: slot.pinned })) ?? []);
   const analysisSnapshots = useRef(new Map<number, PanelSnapshot>(analysisRecovery?.slots.map((slot,index) => [index,slot])));
-  const finishedGames = useRef(new Map<string, Pick<GameSummary,'live'|'result'|'moves'|'endedAt'>>());
-  const recordFinished = useCallback((game:GameSummary) => {
-    const previous=finishedGames.current.get(game.id);
-    if(previous && previous.result===game.result && previous.moves===game.moves && previous.endedAt===game.endedAt)return;
-    const summary={live:false,result:game.result,moves:game.moves,endedAt:game.endedAt};
-    finishedGames.current.set(game.id,summary);
-    setGames(current=>current.map(item=>item.id===game.id?{...item,...summary}:item));
-  },[]);
+  const [completedGames]=useState(()=>new CompletedGames());
   const [favorites, setFavorites] = useState(loadFavorites);
   const [recent, setRecent] = useState(loadRecent);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fixture' | 'empty' | 'error'>('loading');
@@ -76,6 +71,14 @@ export default function App() {
   const [sort, setSort] = useState<'new' | 'high' | 'low'>('new');
   const analysisContext=useRef({slots,games,view,expanded,settings});
   useLayoutEffect(()=>{analysisContext.current={slots,games,view,expanded,settings};},[slots,games,view,expanded,settings]);
+  const recordFinished = useCallback((game:GameSummary) => {
+    if(!completedGames.remember(game))return;
+    setGames(current=>completedGames.apply(current));
+    const context=analysisContext.current;
+    if(!context.settings.autoSwitchFinished||context.view!=='live'||studyingRef.current||validation.current)return;
+    const protectedIds=new Set([...dialogGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
+    setSlots(current=>replaceFinishedSlots(current,completedGames.apply(context.games),protectedIds));
+  },[completedGames,share.game]);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [viewerStats, setViewerStats] = useState<ViewerStats>();
   const [statsChecked, setStatsChecked] = useState(false);
@@ -85,10 +88,18 @@ export default function App() {
     const controller = new AbortController();
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let first = true;
+    let inFlight=false;
     const refresh = async () => {
+      if(inFlight||controller.signal.aborted)return;
+      inFlight=true;
       try {
         const result = await loadCatalog(controller.signal);
-        result.games=result.games.map(game=>({...game,...finishedGames.current.get(game.id)}));
+        let initialExcluded=new Set<string>();
+        if(!result.fixture&&!analysisRecovery&&!analysisContext.current.slots.length) {
+          const checked=await initialGames(result.games,settings.boardCount,completedGames,controller.signal,share.game);
+          result.games=checked.games;initialExcluded=checked.excluded;
+        }else result.games=completedGames.apply(result.games);
+        if(controller.signal.aborted)return;
         setGames((current) => [...result.games, ...current.filter((game) => !result.games.some((fresh) => fresh.id === game.id))]);
         setStatus(result.games.length ? result.fixture ? 'fixture' : 'ready' : 'empty');
         const restoringInitial = (first && Boolean(analysisRecovery)) || skipSwitch.current;
@@ -96,17 +107,18 @@ export default function App() {
         setSlots((current) => {
           if (restoringInitial || studyingRef.current || Boolean(validation.current)) return current;
           if (!current.length) {
-            const featured = selectFeaturedGames(result.games, settings.boardCount);
-            const shared = share.game && result.games.some((game) => game.id === share.game) ? share.game : undefined;
-            return featured.map((game, index) => ({ id: index === 0 && shared ? shared : game.id, pinned: false }));
+            const shared=result.games.find(game=>game.id===share.game);
+            const featured = selectFeaturedGames(result.games.filter(game=>game.id!==shared?.id&&!initialExcluded.has(game.id)), settings.boardCount-(shared?1:0));
+            return [...(shared?[shared]:[]),...featured].map(game=>({id:game.id,pinned:false}));
           }
           if (!settings.autoSwitchFinished) return current;
-          const protectedIds=new Set([...dialogGames.current,...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
+          const protectedIds=new Set([...dialogGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
           return replaceFinishedSlots(current,result.games,protectedIds);
         });
       } catch {
         if (!controller.signal.aborted && first) setStatus('error');
       } finally {
+        inFlight=false;
         first = false;
         if (!controller.signal.aborted && !STATIC_MODE) timeout = setTimeout(refresh, document.hidden ? 120_000 : 30_000);
       }
@@ -115,7 +127,7 @@ export default function App() {
     const onVisibility = () => { if (STATIC_MODE) return; if (timeout) clearTimeout(timeout); timeout = setTimeout(refresh, document.hidden ? 120_000 : 1_000); };
     document.addEventListener('visibilitychange', onVisibility);
     return () => { controller.abort(); if (timeout) clearTimeout(timeout); document.removeEventListener('visibilitychange', onVisibility); };
-  }, [settings.autoSwitchFinished, settings.boardCount, share.game]);
+  }, [settings.autoSwitchFinished, settings.boardCount, share.game,completedGames]);
 
   useEffect(() => {
     saveSettings(settings);
@@ -355,6 +367,7 @@ export default function App() {
       </header>
 
       <main id="main" className={liveMainClass}>
+        {view==='live' && status!=='loading' && !visibleSlots.length && <div className="notice" role="status">表示できる注目対局をまだ確認できません。過去対局から手動で選ぶか、次の更新をお待ちください。</div>}
         {validating && <div className="notice" role="status">棋譜・保存データを検証中…<button onClick={() => validation.current?.abort()}>取消</button></div>}
         {studyMessage && <div className="notice error" role="alert">{studyMessage}</div>}
         {status === 'fixture' && <div className={`notice warning${noticeOpen ? ' is-open' : ''}`} role="status"><strong>静的fixtureで表示中</strong><button className="mobile-notice-toggle" aria-expanded={noticeOpen} aria-controls="fixture-notice" onClick={() => setNoticeOpen((open) => !open)}>{noticeOpen ? '閉じる' : '詳細'}</button><span id="fixture-notice">LIVE中継に接続できないため、同梱データを表示しています。ライブ更新と統計は停止中です。</span></div>}

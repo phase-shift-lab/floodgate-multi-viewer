@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 
-export type DetailTab = 'record' | 'analysis' | 'settings';
-const TABS: [DetailTab,string][] = [['record','棋譜'],['analysis','読み筋'],['settings','設定']];
+export type DetailTab = 'record' | 'analysis' | 'batch' | 'settings';
+const TABS: [DetailTab,string][] = [['record','棋譜'],['analysis','読み筋'],['batch','全棋譜解析'],['settings','設定']];
 
 export function DetailPanel({ open, onClose, title = '局面の詳細', tab, onTabChange, children }: {
   open: boolean; onClose: () => void; title?: string; tab: DetailTab; onTabChange: (tab: DetailTab) => void; children: ReactNode;

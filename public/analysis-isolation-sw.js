@@ -12,6 +12,9 @@ self.addEventListener('fetch', (event) => {
     headers.set('Cross-Origin-Opener-Policy', 'same-origin');
     // Safari supports require-corp, but not credentialless.
     headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
-    return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    // WebKit can expose a stream on conditional 304 responses. Fetch forbids
+    // bodies for these statuses; preserve revalidation without inventing one.
+    const body = [204, 205, 304].includes(response.status) || event.request.method === 'HEAD' ? null : response.body;
+    return new Response(body, { status: response.status, statusText: response.statusText, headers });
   })());
 });

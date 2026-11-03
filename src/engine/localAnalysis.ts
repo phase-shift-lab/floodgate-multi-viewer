@@ -21,6 +21,20 @@ export class LocalAnalysis {
   private timer?: ReturnType<typeof setTimeout>;
   private idleTimer?: ReturnType<typeof setTimeout>;
   private failure?: string;
+  private exclusive?: string;
+
+  /** A full-record run shares this worker but temporarily holds normal jobs. */
+  reserve(key: string): () => void {
+    if (this.exclusive && this.exclusive !== key) throw new Error('別の棋譜を解析中です。先に停止してください。');
+    this.exclusive = key;
+    if (this.active && this.active.key !== key) {
+      this.active.cancelled = true;
+      this.queue.unshift(this.active);
+      this.active.update({phase:'queued'});
+      this.stopActive();
+    }
+    return () => { if (this.exclusive === key) { this.exclusive = undefined; this.pump(); } };
+  }
 
   constructor() {
     document.addEventListener('visibilitychange', () => {
@@ -122,10 +136,9 @@ export class LocalAnalysis {
     if (document.hidden || this.failure || !this.queue.length) return;
     if (!this.worker) { this.start(); return; }
     if (!this.ready || this.active) return;
-    let job: Job | undefined;
-    while ((job = this.queue.shift())) {
-      if (this.jobs.get(job.key) === job) break;
-    }
+    this.queue = this.queue.filter(job => this.jobs.get(job.key) === job);
+    const index = this.queue.findIndex(job => !this.exclusive || job.key === this.exclusive);
+    const job = index < 0 ? undefined : this.queue.splice(index, 1)[0];
     if (!job) return;
     job.cancelled = false;
     job.score = undefined;

@@ -19,9 +19,11 @@ export function selectFeaturedGames(games: GameSummary[], count: number): GameSu
   games = games.filter((game) => game.live || game.moves !== 0);
   const selected: GameSummary[] = [];
   const used = new Map<string, number>();
-  const groups = [...new Set(games.filter((game) => game.live).map((game) => game.group))];
+  const liveGames=games.filter(game=>game.live);
+  const groupGames=liveGames.some(game=>game.moves!==0)?liveGames.filter(game=>game.moves!==0):liveGames;
+  const groups = [...new Set(groupGames.map(game=>game.group))];
   const primaryGroup = groups
-    .map((group) => ({ group, games: games.filter((game) => game.live && game.group === group) }))
+    .map((group) => ({ group, games: groupGames.filter(game=>game.group===group) }))
     .sort((a, b) => b.games.length - a.games.length || compareGames(a.games.sort(compareGames)[0], b.games.sort(compareGames)[0]))[0]?.group;
   const live = games.filter((game) => game.live && (!primaryGroup || game.group === primaryGroup));
   const finished = games.filter((game) => !game.live).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
@@ -37,6 +39,7 @@ export function selectFeaturedGames(games: GameSummary[], count: number): GameSu
       const adjustedAverageA = rateAverage(a) - duplicateA * 25;
       const adjustedAverageB = rateAverage(b) - duplicateB * 25;
       return liveDelta
+        || (a.live&&b.live ? Number(a.moves===0)-Number(b.moves===0) : 0)
         || adjustedFloorB - adjustedFloorA
         || adjustedAverageB - adjustedAverageA
         || b.startedAt.localeCompare(a.startedAt);

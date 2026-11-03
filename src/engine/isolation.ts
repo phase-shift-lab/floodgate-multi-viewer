@@ -49,6 +49,7 @@ let preparation: Promise<boolean> | undefined;
 let preparationSignal: AbortSignal | undefined;
 type RecoveryInput = Omit<AnalysisRecovery, 'at'> | (() => Omit<AnalysisRecovery, 'at'>);
 let preparationPhase: 'idle' | 'preparing' | 'awaiting-reload' | 'ready' | 'failed' = 'idle';
+export function isAnalysisReloadPending(): boolean { return preparationPhase === 'awaiting-reload'; }
 export function retryAnalysisPreparation(): void {
   if (preparationPhase === 'preparing' || preparationPhase === 'awaiting-reload') return;
   preparation = undefined; preparationSignal = undefined; preparationPhase = 'idle';

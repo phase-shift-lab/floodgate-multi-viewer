@@ -13,6 +13,22 @@ class WorkerStub {
 }
 
 describe('shared local analysis scheduling', () => {
+  it('gives a full-record run exclusive use without dropping normal jobs',async()=>{
+    const service=new LocalAnalysis(),normal=vi.fn();
+    const cancelNormal=service.request('normal','normal-position','+',normal);
+    await Promise.resolve();const worker=WorkerStub.instances[0];worker.emit({type:'ready'});
+    const release=service.reserve('record');
+    expect(()=>service.reserve('other-record')).toThrow('別の棋譜');
+    const cancelRecord=service.request('record','record-position','+',vi.fn());
+    await Promise.resolve();expect(worker.commands.at(-1)).toBe('stop');
+    worker.emit({type:'line',line:'bestmove 7g7f'});
+    expect(worker.commands).toContain('position sfen record-position');
+    worker.emit({type:'line',line:'bestmove 7g7f'});
+    expect(worker.commands.filter(command=>command==='position sfen normal-position')).toHaveLength(1);
+    cancelRecord();release();
+    expect(worker.commands.filter(command=>command==='position sfen normal-position')).toHaveLength(2);
+    cancelNormal();vi.advanceTimersByTime(500);
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.stubGlobal('Worker', WorkerStub);

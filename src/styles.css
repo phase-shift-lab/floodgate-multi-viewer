@@ -621,7 +621,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .board-dialog::backdrop { background:#0009; }
 .board-dialog-header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); flex:none; }
 .board-dialog-header button { min-height:44px; font-size:.8rem; }
-.board-dialog-tabs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:.3rem; padding:.35rem .6rem; border-bottom:1px solid var(--line); flex:none; }
+.board-dialog-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.3rem; padding:.35rem .6rem; border-bottom:1px solid var(--line); flex:none; }
 .board-dialog-tabs button { min-height:44px; min-width:0; font-size:.8rem; padding:.25rem; }
 .board-dialog-tabs button[aria-selected='true'],.record-kind button[aria-pressed='true'] { background:var(--accent-soft); border-color:var(--accent); color:var(--ink); font-weight:700; }
 .board-dialog-body { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
@@ -840,7 +840,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .unified-caption > .context-share,.unified-caption > .return-source { flex:none; min-height:32px; margin-right:.3rem; font-size:.7rem; padding:.2rem .4rem; }
 .unified-caption > .return-source { font-weight:700; color:var(--accent); }
 .unified-caption > .context-share,.unified-caption > .return-source { line-height:1.2; padding-block:1px; min-width:44px; }
-.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(5,minmax(44px,1fr)); }
+.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(6,minmax(44px,1fr)); }
 .unified-panel .evaluation-open > span { top:.3rem; bottom:auto; }
 .evaluation-basis { display:block; font-size:.5rem; font-weight:400; color:#b4cecc; line-height:1.2; }
 @media(max-width:767px) {
@@ -867,4 +867,35 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 @media(max-width:767px) {
  .app-shell .unified-panel .local-evaluation { min-height:60px; padding-block:.25rem; }
  .unified-panel > .connection { min-height:13px; line-height:1.2; padding-block:0; }
+}
+/* Full-record analysis stays inside the existing bounded dialog. */
+.record-analysis { min-width:0; font-size:.8rem; padding:.6rem; }
+.record-analysis-settings { display:flex; flex-wrap:wrap; gap:.4rem; align-items:end; }
+.record-analysis-settings label { display:flex; flex-direction:column; gap:.2rem; }
+.record-analysis-settings button,.record-analysis-settings select { min-height:44px; }
+.record-analysis-note { color:var(--muted); font-size:.7rem; line-height:1.5; }
+.record-analysis progress { width:100%; accent-color:var(--accent); }
+.record-score-chart { display:block; width:100%; max-height:85px; color:var(--ink); background:var(--paper-2); border:1px solid var(--line); border-radius:6px; }
+.record-score-chart text { fill:currentColor; font-size:12px; opacity:.7; }
+.record-analysis-results { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.7rem; margin-top:.6rem; }
+.record-position { min-width:0; }
+.record-position > strong { display:block; font-size:.75rem; }
+.app-shell .boards .unified-panel .record-position .board-wrap { width:100%; padding:0 12px 0 0; height:auto; }
+.app-shell .boards .unified-panel .record-position .board-stack { width:100%; max-width:100%; --board-piece-font-size:clamp(.65rem,6.8cqw,1.2rem); --hand-count-font-size:.65rem; }
+.record-position output { display:block; font:700 1.6rem Arial,sans-serif; color:var(--accent); }
+.record-pv { padding-left:1rem; font-size:.72rem; overflow-wrap:anywhere; }
+.record-pv p { margin-top:.2rem; }
+.record-result-list { padding:0; margin:0; list-style:none; max-height:430px; overflow:auto; overscroll-behavior:contain; }
+.record-result-list button { display:flex; width:100%; min-height:44px; gap:.3rem; align-items:center; justify-content:space-between; font-size:.75rem; text-align:left; }
+.record-result-list button[aria-current='step'] { background:var(--accent-soft); border-color:var(--accent); }
+.record-analysis-view { display:none; }
+@media(max-width:520px) {
+ .record-analysis-view { display:flex; gap:.3rem; margin-top:.5rem; }
+ .record-analysis-view button { flex:1; min-height:44px; font-size:.7rem; }
+ .record-analysis-view button[aria-pressed='true'] { background:var(--accent-soft); }
+ .record-analysis-results { grid-template-columns:minmax(0,1fr); }
+ .record-analysis-results.is-list .record-position,.record-analysis-results.is-position .record-result-list { display:none; }
+ .record-position { width:100%; max-width:260px; margin-inline:auto; }
+ .record-result-list { max-height:260px; }
+ .board-dialog-tabs button { font-size:.65rem; overflow-wrap:anywhere; }
 }
