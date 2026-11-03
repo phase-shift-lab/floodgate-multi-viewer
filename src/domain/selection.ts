@@ -16,6 +16,7 @@ export function compareGames(a: GameSummary, b: GameSummary): number {
 }
 
 export function selectFeaturedGames(games: GameSummary[], count: number): GameSummary[] {
+  games = games.filter((game) => game.live || game.moves !== 0);
   const selected: GameSummary[] = [];
   const used = new Map<string, number>();
   const groups = [...new Set(games.filter((game) => game.live).map((game) => game.group))];
@@ -47,6 +48,21 @@ export function selectFeaturedGames(games: GameSummary[], count: number): GameSu
     used.set(next.white, (used.get(next.white) ?? 0) + 1);
   }
   return selected;
+}
+
+/** Replace only confirmed finished slots, keeping positions and protected views. */
+export function replaceFinishedSlots<T extends {id:string;pinned:boolean}>(slots:T[], games:GameSummary[], protectedIds:Set<string>): T[] {
+  const excluded=new Set(slots.map(slot=>slot.id));
+  let changed=false;
+  const next=slots.map(slot=>{
+    const game=games.find(game=>game.id===slot.id);
+    if(slot.pinned || protectedIds.has(slot.id) || !game || game.live)return slot;
+    const replacement=selectFeaturedGames(games.filter(game=>!excluded.has(game.id)),1)[0];
+    if(!replacement)return slot;
+    excluded.add(replacement.id);changed=true;
+    return {...slot,id:replacement.id,pinned:false};
+  });
+  return changed?next:slots;
 }
 
 export function rateLabel(rate?: number): string {

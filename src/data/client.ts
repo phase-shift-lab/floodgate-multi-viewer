@@ -73,7 +73,10 @@ export async function loadGame(summary: GameSummary, signal: AbortSignal): Promi
   try {
     const response = await fetchText(`/api/csa?file=${encodeURIComponent(summary.csaPath)}`, signal);
     if (!/^V\d+(?:\.\d+)?\s*$/m.test(response.text) || !/^N\+.+$/m.test(response.text) || !/^N-.+$/m.test(response.text)) throw new DataError('CSAではない応答を受信しました');
-    return { game: { ...parseCsa(response.text, summary.id), ...summary, sourceText: response.text }, stale: response.stale, fixture: false, fetchedAt: new Date() };
+    const parsed = parseCsa(response.text, summary.id);
+    return { game: { ...parsed, ...summary, moves: parsed.moveList.length,
+      live: summary.live && parsed.live, endedAt: parsed.endedAt ?? summary.endedAt,
+      result: parsed.result ?? summary.result, sourceText: response.text }, stale: response.stale, fixture: false, fetchedAt: new Date() };
   } catch (error) {
     if (signal.aborted) throw error;
     return { game: fixtureGame(summary), stale: true, fixture: true, fetchedAt: new Date() };

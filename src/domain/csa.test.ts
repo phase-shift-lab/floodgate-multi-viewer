@@ -11,6 +11,14 @@ import {
 import type { Move } from './types';
 
 describe('CSA parser', () => {
+  it('distinguishes an unstarted game from a zero-move record with an explicit end time', () => {
+    const source="V2.2\nN+AI-Slop-Fast-beta\nN-taiyo_unajyu-f\nPI\n+\n";
+    expect(parseCsa(source).live).toBe(true);
+    const ended=parseCsa(source+"'$END_TIME:2026/11/03 12:00:01\n");
+    expect(ended).toMatchObject({live:false,moves:0,endedAt:'2026/11/03 12:00:01',result:'不成立（0手終了）'});
+    expect(parseCsa(source+"'$END_TIME:unknown").live).toBe(true);
+    expect(parseCsa(source+"+7776FU\n%TORYO\n'$END_TIME:2026/11/03 12:10:00").result).toBe('先手勝ち');
+  });
   it('parses promotion, non-promotion and resignation', () => {
     const game = parseCsa(`V2.2\nN+Alpha\nN-Beta\nPI\n+\n+7776FU\n-3334FU\n+8822UM\n%TORYO`);
     expect(game.moveList.map((move) => move.piece)).toEqual(['FU', 'FU', 'UM']);

@@ -39,6 +39,50 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('GamePanel live following', () => {
+  it('caps failed retries, resumes latest following, and cancels the timer on unmount',async()=>{
+    const view=render(<GamePanel {...panelProps()} />);await flushLoad();
+    vi.mocked(loadGame).mockResolvedValue({...resultAt(0),fixture:true});
+    for(const delay of [30_000,60_000,120_000,120_000,120_000]) {
+      const before=vi.mocked(loadGame).mock.calls.length;
+      await act(async()=>{await vi.advanceTimersByTimeAsync(delay);});
+      expect(vi.mocked(loadGame).mock.calls.length).toBe(before+1);
+    }
+    expect(screen.getByText(/接続: 再接続待ち/)).toBeInTheDocument();
+    expect(screen.getByLabelText('現在手数')).toHaveTextContent('2 / 2手');
+    vi.mocked(loadGame).mockResolvedValue(resultAt(5));
+    await act(async()=>{await vi.advanceTimersByTimeAsync(120_000);});
+    expect(screen.getByLabelText('現在手数')).toHaveTextContent('5 / 5手');
+    const before=vi.mocked(loadGame).mock.calls.length;
+    view.unmount();await act(async()=>{await vi.advanceTimersByTimeAsync(120_000);});
+    expect(vi.mocked(loadGame).mock.calls.length).toBe(before);
+  });
+  it.each(['fallback','exception'])('recovers after %s without dropping the previous board',async(kind)=>{
+    render(<GamePanel {...panelProps()} />);await flushLoad();
+    fireEvent.click(screen.getByRole('button',{name:'1手戻る'}));
+    if(kind==='fallback')vi.mocked(loadGame).mockResolvedValue({...resultAt(0),fixture:true});
+    else vi.mocked(loadGame).mockRejectedValue(new Error('offline'));
+    await act(async()=>{await vi.advanceTimersByTimeAsync(30_000);});
+    expect(screen.getByLabelText('現在手数')).toHaveTextContent('1 / 2手');
+    vi.mocked(loadGame).mockResolvedValue(resultAt(4));
+    const calls=vi.mocked(loadGame).mock.calls.length;
+    await act(async()=>{await vi.advanceTimersByTimeAsync(59_999);});
+    expect(vi.mocked(loadGame).mock.calls.length).toBe(calls);
+    await act(async()=>{await vi.advanceTimersByTimeAsync(1);});
+    expect(screen.getByLabelText('現在手数')).toHaveTextContent('1 / 4手');
+    fireEvent.click(screen.getByRole('button',{name:'最新'}));
+    await pollNext(5);expect(screen.getByLabelText('現在手数')).toHaveTextContent('5 / 5手');
+  });
+  it('reports only a fresh real completion to the catalog',async()=>{
+    const onGameFinished=vi.fn();
+    vi.mocked(loadGame).mockResolvedValue({...resultAt(0),game:{...resultAt(0).game,live:false,result:'不成立（0手終了）'}});
+    render(<GamePanel {...panelProps()} onGameFinished={onGameFinished} />);await flushLoad();
+    expect(onGameFinished).toHaveBeenCalledWith(expect.objectContaining({live:false,moves:0}));
+    expect(screen.getByRole('button',{name:'対局を選ぶ'})).toHaveTextContent('終局 ·');
+    onGameFinished.mockClear();
+    vi.mocked(loadGame).mockResolvedValue({...resultAt(0),fixture:true});
+    await act(async()=>{await vi.advanceTimersByTimeAsync(30_000);});
+    expect(onGameFinished).not.toHaveBeenCalled();
+  });
   it('opens the score sheet from the current move, selects without entering study and retains favorites',async()=>{
     Object.defineProperty(HTMLElement.prototype,'scrollIntoView',{configurable:true,value:vi.fn()});
     const props=panelProps(),onStudy=vi.fn(); render(<GamePanel {...props} onStudy={onStudy} />); await flushLoad();

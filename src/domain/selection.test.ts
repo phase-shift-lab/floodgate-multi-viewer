@@ -1,4 +1,4 @@
-import { compareGames, rateLabel, selectFeaturedGames } from './selection';
+import { compareGames, rateLabel, replaceFinishedSlots, selectFeaturedGames } from './selection';
 import type { GameSummary } from './types';
 
 function game(id: string, black: string, white: string, blackRate: number | undefined, whiteRate: number | undefined, live = true, group = 'g', startedAt = id): GameSummary {
@@ -6,6 +6,21 @@ function game(id: string, black: string, white: string, blackRate: number | unde
 }
 
 describe('featured game selection', () => {
+  it('excludes zero-move finished records but keeps genuine first-move waiting games',()=>{
+    const ended={...game('ended','A','B',4000,4000,false),moves:0};
+    const waiting={...game('waiting','C','D',3000,3000),moves:0};
+    expect(selectFeaturedGames([ended,waiting],4)).toEqual([waiting]);
+  });
+  it('replaces confirmed finished slots in place without duplicates, protecting pins and manual views',()=>{
+    const games=[game('ended','A','B',4000,4000,false),game('kept','C','D',3000,3000),game('new','E','F',3500,3500)];
+    const slots=[{id:'ended',pinned:false},{id:'kept',pinned:false}];
+    expect(replaceFinishedSlots(slots,games,new Set())).toEqual([{id:'new',pinned:false},slots[1]]);
+    expect(replaceFinishedSlots(slots,games,new Set(['ended']))).toBe(slots);
+    const pinned=[{id:'ended',pinned:true},slots[1]];
+    expect(replaceFinishedSlots(pinned,games,new Set())).toBe(pinned);
+    expect(replaceFinishedSlots(slots,games.slice(0,2),new Set())).toBe(slots);
+    expect(replaceFinishedSlots(slots,[],new Set())).toBe(slots);
+  });
   it('orders by lower rating, average, then newest start', () => {
     const values = [
       game('old', 'A', 'B', 3000, 3200, true, 'g', '2026-01-01'),

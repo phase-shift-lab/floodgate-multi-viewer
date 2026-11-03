@@ -36,6 +36,7 @@ interface Props {
   onPin: () => void;
   onFavorite: (name: string) => void;
   onViewed: (id: string) => void;
+  onGameFinished?: (game: GameSummary) => void;
   onSpeedChange: (seconds: number) => void;
   onExpand: () => void;
   expanded: boolean;
@@ -60,6 +61,7 @@ interface Props {
 
 export function GamePanel(props: Props) {
   const onViewed = props.onViewed;
+  const reportFinished = useEffectEvent((game:GameSummary) => props.onGameFinished?.(game));
 
   const [game, setGame] = useState<ParsedGame | undefined>(props.initialGame);
   const gameRef = useRef(game);
@@ -121,16 +123,21 @@ export function GamePanel(props: Props) {
         gameLengthRef.current = nextLength;
         setConnection(result.fixture ? failureCount >= 5 ? 'paused' : 'offline' : result.stale ? 'stale' : 'online');
         setFetchedAt(result.fetchedAt);
-        if (props.summary.live && !result.fixture) timeout = setTimeout(poll, 30_000);
+        if (!result.fixture && !result.stale && !fetchedGame.live) reportFinished(fetchedGame);
       } catch {
         if (controller.signal.aborted) return;
         failures.current += 1;
         setConnection(failures.current >= 5 ? 'paused' : 'stale');
+      } finally {
+        if (!controller.signal.aborted && !props.fixture && (props.summary.live || gameRef.current?.live)) {
+          const delay = Math.min(120_000, 30_000 * 2 ** Math.min(failures.current, 2));
+          timeout = setTimeout(poll, document.hidden ? Math.max(120_000, delay) : delay);
+        }
       }
     };
     void poll();
     return () => { controller.abort(); if (timeout) clearTimeout(timeout); };
-  }, [props.summary, props.suspended, props.sound]);
+  }, [props.summary, props.suspended, props.sound, props.fixture]);
 
   const maxPly = game?.moveList.length ?? 0;
   const safePly = Math.min(ply, maxPly);
@@ -210,7 +217,7 @@ export function GamePanel(props: Props) {
   const requestSettings=useEffectEvent(() => { if (!props.study) openDetails('settings'); });
   const lastSettingsRequest=useRef(props.settingsRequest);
   useEffect(() => { if (props.settingsRequest && props.settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=props.settingsRequest; },[props.settingsRequest]);
-  const gameMenu = <ToolsMenu disabled={Boolean(props.study)||props.suspended} label={<span>{props.fixture ? 'FIXTURE' : props.summary.live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
+  const gameMenu = <ToolsMenu disabled={Boolean(props.study)||props.suspended} label={<span>{props.fixture ? 'FIXTURE' : (game ?? props.summary).live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
       <label>表示する対局<select aria-label="表示する対局" value={props.summary.id} onChange={event => props.onSelect(event.target.value)}>{props.games.map(item => <option key={item.id} value={item.id}>{item.black} vs {item.white}</option>)}</select></label>
       <button aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
       {props.onResumeStudy && <button onClick={props.onResumeStudy}>前の検討を再開</button>}
@@ -247,6 +254,6 @@ export function GamePanel(props: Props) {
     </DetailPanel>} />;
 }
 
-function connectionLabel(state: ConnectionState): string { return { connecting:'接続中',online:'オンライン',stale:'stale',offline:'fixture',paused:'更新停止' }[state]; }
+function connectionLabel(state: ConnectionState): string { return { connecting:'接続中',online:'オンライン',stale:'stale',offline:'fixture',paused:'再接続待ち' }[state]; }
 function formatPeoplePerDay(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人/日' : '-'; }
 function formatPeople(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人' : '-'; }

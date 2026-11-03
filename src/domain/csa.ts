@@ -142,6 +142,9 @@ export function parseCsa(text: string, fallbackId = 'fixture-game'): ParsedGame 
     }
   }
   const reason = lines.find((line) => /^%[A-Z_]+$/.test(line));
+  const end = meta(lines, "'$END_TIME:") ?? meta(lines, '$END_TIME:');
+  const endedAt = end && /^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/.test(end)
+    && Number.isFinite(Date.parse(end.replaceAll('/', '-').replace(' ', 'T')+'+09:00')) ? end : undefined;
   const id = meta(lines, '$EVENT:') ?? fallbackId;
   const startedAt = meta(lines, '$START_TIME:') ?? id.match(/(\d{8})(\d{6})/)?.slice(1).join('T') ?? '';
   const group = meta(lines, '$EVENT:')?.split('+')[1] ?? id.split('+')[1] ?? 'floodgate';
@@ -155,8 +158,9 @@ export function parseCsa(text: string, fallbackId = 'fixture-game'): ParsedGame 
     blackRate: parseRate(text, 'black'),
     whiteRate: parseRate(text, 'white'),
     startedAt,
-    live: !reason,
-    result: reason ? resultFromReason(reason, moveList.at(-1)?.side) : undefined,
+    endedAt,
+    live: !reason && !endedAt,
+    result: reason ? resultFromReason(reason, moveList.at(-1)?.side) : endedAt ? moveList.length ? '終了（結果不明）' : '不成立（0手終了）' : undefined,
     moves: moveList.length,
     csaPath: `${id}.csa`,
     version: lines.find((line) => /^V\d/.test(line))?.slice(1),

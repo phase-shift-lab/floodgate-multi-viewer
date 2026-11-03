@@ -8,7 +8,7 @@ import { loadAnalysisEnabled } from './data/analysisPreferences';
 import { GamePanel } from './components/GamePanel';
 import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
 import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
-import { compareGames, selectFeaturedGames } from './domain/selection';
+import { compareGames, replaceFinishedSlots, selectFeaturedGames } from './domain/selection';
 import type { GameSummary, Move, ParsedGame, ViewerSettings } from './domain/types';
 
 interface Slot { id: string; pinned: boolean }
@@ -53,6 +53,14 @@ export default function App() {
   const [games, setGames] = useState<GameSummary[]>(() => analysisRecovery?.slots.map((slot) => slot.summary) ?? []);
   const [slots, setSlots] = useState<Slot[]>(() => analysisRecovery?.slots.map((slot) => ({ id: slot.summary.id, pinned: slot.pinned })) ?? []);
   const analysisSnapshots = useRef(new Map<number, PanelSnapshot>(analysisRecovery?.slots.map((slot,index) => [index,slot])));
+  const finishedGames = useRef(new Map<string, Pick<GameSummary,'live'|'result'|'moves'|'endedAt'>>());
+  const recordFinished = useCallback((game:GameSummary) => {
+    const previous=finishedGames.current.get(game.id);
+    if(previous && previous.result===game.result && previous.moves===game.moves && previous.endedAt===game.endedAt)return;
+    const summary={live:false,result:game.result,moves:game.moves,endedAt:game.endedAt};
+    finishedGames.current.set(game.id,summary);
+    setGames(current=>current.map(item=>item.id===game.id?{...item,...summary}:item));
+  },[]);
   const [favorites, setFavorites] = useState(loadFavorites);
   const [recent, setRecent] = useState(loadRecent);
   const [status, setStatus] = useState<'loading' | 'ready' | 'fixture' | 'empty' | 'error'>('loading');
@@ -80,6 +88,7 @@ export default function App() {
     const refresh = async () => {
       try {
         const result = await loadCatalog(controller.signal);
+        result.games=result.games.map(game=>({...game,...finishedGames.current.get(game.id)}));
         setGames((current) => [...result.games, ...current.filter((game) => !result.games.some((fresh) => fresh.id === game.id))]);
         setStatus(result.games.length ? result.fixture ? 'fixture' : 'ready' : 'empty');
         const restoringInitial = (first && Boolean(analysisRecovery)) || skipSwitch.current;
@@ -92,12 +101,8 @@ export default function App() {
             return featured.map((game, index) => ({ id: index === 0 && shared ? shared : game.id, pinned: false }));
           }
           if (!settings.autoSwitchFinished) return current;
-          const kept = current.filter((slot) => slot.pinned || dialogGames.current.has(slot.id)
-            || [...analysisSnapshots.current.values()].some(panel => panel.summary.id === slot.id && panel.followingLatest === false)
-            || result.games.find((game) => game.id === slot.id)?.live);
-          const exclude = new Set(kept.map((slot) => slot.id));
-          const replacements = selectFeaturedGames(result.games.filter((game) => !exclude.has(game.id)), settings.boardCount - kept.length);
-          return [...kept, ...replacements.map((game) => ({ id: game.id, pinned: false }))];
+          const protectedIds=new Set([...dialogGames.current,...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
+          return replaceFinishedSlots(current,result.games,protectedIds);
         });
       } catch {
         if (!controller.signal.aborted && first) setStatus('error');
@@ -380,7 +385,7 @@ export default function App() {
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
               const restoredPanel = recovery?.slots[realIndex]?.summary.id === summary.id ? recovery.slots[realIndex] : undefined;
-              return <GamePanel settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} onResumeStudy={hasSavedStudy ? () => void resumeStudy(false,realIndex) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
+              return <GamePanel onGameFinished={recordFinished} settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} onResumeStudy={hasSavedStudy ? () => void resumeStudy(false,realIndex) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
                 key={`${panelRevision}:${restoredWatch?.at ?? 0}:${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} />;
             })}
           </div>}
