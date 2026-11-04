@@ -4,7 +4,7 @@ test.beforeEach(async({page})=>{await disabledAnalysis(page);await page.goto(bas
 
 test('only a legal confirmed move enters study, saves that first move and restores the original board',async({page})=>{
  const panel=page.locator('.unified-panel');
- await expect(panel.locator('.board-controls button')).toHaveText(['反転','再生','←','→','棋譜','解析']);
+ await expect(panel.locator('.board-controls button')).toHaveText(['反転','再生','←','→','棋譜']);
  await panel.locator('[data-square="27"]').click();await expect(page.locator('.is-studying')).toHaveCount(0);
  await panel.locator('[data-square="25"]').click();await expect(page.locator('.is-studying')).toHaveCount(0);
  await panel.locator('[data-square="27"]').click();await expect(panel.locator('.legal-target')).toHaveCount(0);

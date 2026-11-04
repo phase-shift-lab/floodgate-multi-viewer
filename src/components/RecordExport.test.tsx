@@ -1,0 +1,35 @@
+import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
+import {afterEach,expect,it,vi} from 'vitest';
+import {RecordExport} from './RecordExport';
+import {parseCsa} from '../domain/csa';
+import {variationRecord} from '../domain/recordExport';
+const game=parseCsa('V2.2\nN+A\nN-B\nPI\n+\n+7776FU\n-3334FU\n%TORYO');
+afterEach(()=>{cleanup();vi.restoreAllMocks();vi.unstubAllGlobals();});
+it('copies the full source by default and the selected current variation as CSA',async()=>{
+ const writeText=vi.fn().mockResolvedValue(undefined);
+ vi.stubGlobal('navigator',{clipboard:{writeText}});
+ render(<RecordExport game={game} variation={variationRecord(game,game.moveList.slice(0,1))}/>);
+ fireEvent.click(screen.getByText('棋譜コピー'));
+ await waitFor(()=>expect(screen.getByText('棋譜をコピーしました')).toBeInTheDocument());
+ expect(writeText.mock.calls[0][0]).toContain('3 投了');
+ fireEvent.change(screen.getByLabelText('出力する棋譜'),{target:{value:'variation'}});
+ fireEvent.change(screen.getByLabelText('棋譜の出力形式'),{target:{value:'csa'}});
+ fireEvent.click(screen.getByText('棋譜コピー'));
+ await waitFor(()=>expect(writeText).toHaveBeenCalledTimes(2));
+ expect(writeText.mock.calls[1][0]).toContain('+7776FU');
+ expect(writeText.mock.calls[1][0]).not.toContain('-3334FU');
+ expect(writeText.mock.calls[1][0]).not.toContain('%TORYO');
+});
+it('reports clipboard denial and downloads a UTF-8 record using a safe filename',async()=>{
+ vi.stubGlobal('navigator',{clipboard:{writeText:vi.fn().mockRejectedValue(new Error('denied'))}});
+ const create=vi.fn((blob:Blob)=> {expect(blob.size).toBeGreaterThan(0);return 'blob:test';});vi.stubGlobal('URL',{createObjectURL:create,revokeObjectURL:vi.fn()});
+ let filename='';
+ vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(function(this:HTMLAnchorElement){filename=this.download;});
+ render(<RecordExport game={game}/>);
+ fireEvent.click(screen.getByText('棋譜コピー'));
+ await waitFor(()=>expect(screen.getByText(/コピーできませんでした/)).toBeInTheDocument());
+ fireEvent.click(screen.getByText('棋譜DL'));
+ expect(create.mock.calls[0][0]).toBeInstanceOf(Blob);
+ expect(filename).toMatch(/_A_vs_B\.kifu$/);
+ expect(document.querySelector('a[download]')).toBeNull();
+});

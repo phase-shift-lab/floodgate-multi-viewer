@@ -619,11 +619,12 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .board-dialog { position:fixed; inset:0; margin:auto; padding:0; width:min(80vw,640px); height:80svh; max-width:80vw; max-height:80svh; min-width:0; border:1px solid var(--line); border-radius:.75rem; background:var(--paper); color:var(--ink); box-shadow:0 16px 80px #0008; }
 .board-dialog[open] { display:flex; flex-direction:column; }
 .board-dialog::backdrop { background:#0009; }
-.board-dialog-header { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); flex:none; }
+.board-dialog-header { position:relative; z-index:4; display:flex; align-items:center; justify-content:space-between; gap:.3rem; padding:.35rem .45rem; border-bottom:1px solid var(--line); flex:none; }
 .board-dialog-header button { min-height:44px; font-size:.8rem; }
-.board-dialog-tabs { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.3rem; padding:.35rem .6rem; border-bottom:1px solid var(--line); flex:none; }
-.board-dialog-tabs button { min-height:44px; min-width:0; font-size:.8rem; padding:.25rem; }
-.board-dialog-tabs button[aria-selected='true'],.record-kind button[aria-pressed='true'] { background:var(--accent-soft); border-color:var(--accent); color:var(--ink); font-weight:700; }
+.board-dialog-header .dialog-close { min-width:44px; padding:0; font-size:1.3rem; border:0; background:transparent; }
+.record-header-actions { flex:1; min-width:0; }
+.dialog-record .board-dialog-header > strong { font-size:.85rem; white-space:nowrap; }
+.record-kind button[aria-pressed='true'] { background:var(--accent-soft); border-color:var(--accent); color:var(--ink); font-weight:700; }
 .board-dialog-body { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
 .board-dialog-body > [hidden],.board-dialog-body [hidden] { display:none; }
 .board-dialog .move-list { max-height:none; padding:.4rem; margin:0; border:0; }
@@ -640,6 +641,18 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .board-settings input,.board-settings select { max-width:6rem; min-height:44px; }
 .board-settings button { min-height:44px; }
 .record-kind { display:flex; gap:.4rem; padding:.6rem; }
+.record-export { position:sticky; top:0; z-index:2; background:var(--paper); display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:.4rem; padding:.5rem; border-bottom:1px solid var(--line); }
+.record-export-selects,.record-export-buttons { display:flex; gap:.4rem; min-width:0; }
+.record-export button,.record-export select { min-height:44px; font-size:.85rem; }
+.record-export select { max-width:100%; min-width:0; }
+.record-export output { flex-basis:100%; text-align:right; font-size:.8rem; overflow-wrap:anywhere; }
+.record-export output:empty { display:none; }
+.record-export.is-header { position:static; flex-wrap:nowrap; padding:0; border:0; gap:3px; }
+.record-export.is-header .record-export-selects,.record-export.is-header .record-export-buttons { gap:3px; flex:none; }
+.record-export.is-header select { width:52px; padding:0 1px; font-size:16px; }
+.record-export.is-header button { padding:0 4px; font-size:.74rem; white-space:nowrap; }
+.record-export.is-header output { position:absolute; top:calc(100% + 4px); right:6px; max-width:calc(100% - 12px); padding:6px 8px; background:var(--paper); border:1px solid var(--line); border-radius:6px; text-align:left; pointer-events:none; }
+@media(max-width:360px) { .dialog-record .board-dialog-header > strong { display:none; } }
 .record-kind button { min-height:44px; flex:1; }
 .dialog-note { padding:.3rem .7rem; font-size:.7rem; color:var(--muted); }
 .board-dialog .study-history { padding:.5rem; border:0; }
@@ -669,7 +682,6 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
  .board-tools-content button { min-height:44px; }
  .app-shell .unified-panel .local-evaluation { min-height:75px; }
  .board-dialog-header { padding:.4rem; }
- .board-dialog-tabs { padding:.3rem; }
  .board-dialog .move-list button { font-size:.86rem; }
  .unified-panel .board-tools-content { width:min(300px,calc(100vw - 2rem)); }
  .unified-panel .study-message { font-size:.7rem; }
@@ -773,7 +785,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 }
 
 /* One shared control row; secondary actions belong to the game name. */
-.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(6,minmax(44px,1fr)); gap:0; padding:3px 4px 5px; }
+.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(5,minmax(44px,1fr)); gap:0; padding:3px 4px 5px; }
 .app-shell .boards .unified-panel .board-controls button { min-height:44px; height:auto; padding:2px; border:0; background:transparent; border-radius:5px; font-size:clamp(.65rem,3.1cqw,.85rem); line-height:1.3; white-space:normal; overflow-wrap:anywhere; }
 .app-shell .boards .unified-panel .board-controls button:hover:not(:disabled) { background:var(--accent-soft); }
 .app-shell .boards .unified-panel .board-controls button:focus-visible { outline:2px solid var(--accent); outline-offset:-2px; }
@@ -840,7 +852,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .unified-caption > .context-share,.unified-caption > .return-source { flex:none; min-height:32px; margin-right:.3rem; font-size:.7rem; padding:.2rem .4rem; }
 .unified-caption > .return-source { font-weight:700; color:var(--accent); }
 .unified-caption > .context-share,.unified-caption > .return-source { line-height:1.2; padding-block:1px; min-width:44px; }
-.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(6,minmax(44px,1fr)); }
+.app-shell .boards .unified-panel .board-controls { grid-template-columns:repeat(5,minmax(44px,1fr)); }
 .unified-panel .evaluation-open > span { top:.3rem; bottom:auto; }
 .evaluation-basis { display:block; font-size:.5rem; font-weight:400; color:#b4cecc; line-height:1.2; }
 @media(max-width:767px) {
@@ -870,9 +882,14 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 }
 /* Full-record analysis stays inside the existing bounded dialog. */
 .record-analysis { min-width:0; font-size:.8rem; padding:.6rem; }
-.record-analysis-settings { display:flex; flex-wrap:wrap; gap:.4rem; align-items:end; }
-.record-analysis-settings label { display:flex; flex-direction:column; gap:.2rem; }
-.record-analysis-settings button,.record-analysis-settings select { min-height:44px; }
+.record-toolbar { position:sticky; top:0; z-index:3; display:flex; align-items:center; justify-content:flex-end; gap:4px; background:var(--paper); padding-bottom:.4rem; border-bottom:1px solid var(--line); }
+.record-toolbar .record-kind { flex:1; min-width:0; padding:0; gap:4px; }
+.record-toolbar .record-kind button { min-width:44px; padding:0 3px; font-size:.8rem; }
+.record-analysis > .move-list { max-height:430px; overflow:auto; margin-top:.5rem; scroll-padding-block:1rem; }
+.record-analysis-note button,.record-position > button { min-height:44px; }
+.record-analysis-settings { display:flex; gap:4px; align-items:center; }
+.record-analysis-settings button,.record-analysis-settings select { min-height:44px; min-width:44px; padding:0 5px; }
+.record-analysis-settings select { font-size:16px; width:66px; }
 .record-analysis-note { color:var(--muted); font-size:.7rem; line-height:1.5; }
 .record-analysis progress { width:100%; accent-color:var(--accent); }
 .record-score-chart { display:block; width:100%; max-height:85px; color:var(--ink); background:var(--paper-2); border:1px solid var(--line); border-radius:6px; }
@@ -897,5 +914,4 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
  .record-analysis-results.is-list .record-position,.record-analysis-results.is-position .record-result-list { display:none; }
  .record-position { width:100%; max-width:260px; margin-inline:auto; }
  .record-result-list { max-height:260px; }
- .board-dialog-tabs button { font-size:.65rem; overflow-wrap:anywhere; }
 }

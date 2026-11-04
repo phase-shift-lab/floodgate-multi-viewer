@@ -16,11 +16,36 @@ beforeEach(()=>{
   vi.mocked(localAnalysis.request).mockImplementation((_key,_position,_turn,callback)=>{update=callback;return vi.fn();});
 });
 afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();sessionStorage.clear();});
+it('opens as a score sheet without starting analysis and navigates the selected move',()=>{
+ const onPick=vi.fn();render(<RecordAnalysisPanel game={game} owner="idle" active ply={2} onPrepare={async()=>true} onPick={onPick}/>);
+ expect(localAnalysis.request).not.toHaveBeenCalled();
+ expect(screen.queryByRole('progressbar')).toBeNull();expect(screen.queryByRole('img')).toBeNull();
+ expect(screen.getByRole('button',{name:/^2\./})).toHaveAttribute('aria-current','step');
+ fireEvent.click(screen.getByRole('button',{name:/^1\./}));expect(onPick).toHaveBeenCalledWith(1,game);
+});
+it('keeps list, copy and navigation on the frozen record when new moves arrive, and refreshes explicitly',async()=>{
+ const writeText=vi.fn().mockResolvedValue(undefined),onPick=vi.fn();
+ vi.stubGlobal('navigator',{clipboard:{writeText}});
+ const props={game,owner:'live',active:true,onPrepare:async()=>true,onPick};
+ const view=render(<RecordAnalysisPanel {...props}/>);
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'解析'}));});
+ await act(async()=>{update({phase:'done',score:{kind:'cp',value:40,depth:8}});});
+ const latest=parseCsa(game.sourceText+'\n+2726FU');view.rerender(<RecordAnalysisPanel {...props} game={latest}/>);
+ expect(screen.queryByRole('button',{name:/^3\./})).toBeNull();
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'棋譜コピー'}));});
+ expect(writeText.mock.calls[0][0]).not.toContain('３六歩');expect(writeText.mock.calls[0][0]).not.toContain('２六歩');
+ fireEvent.click(screen.getByRole('button',{name:/^1\./}));fireEvent.click(screen.getByText('盤面に表示'));
+ expect(onPick).toHaveBeenCalledWith(1,expect.objectContaining({moveList:game.moveList}));
+ const calls=vi.mocked(localAnalysis.request).mock.calls.length;
+ fireEvent.click(screen.getByText('最新の棋譜を表示'));
+ expect(screen.getByRole('button',{name:/^3\./})).toBeInTheDocument();expect(screen.queryByRole('progressbar')).toBeNull();
+ expect(localAnalysis.request).toHaveBeenCalledTimes(calls);
+});
 it('starts explicitly, shows per-ply results on the matching frozen board, and preserves results on closing',async()=>{
   const props={game,owner:'test',active:true,onPrepare:vi.fn(async()=>true)};
   const view=render(<RecordAnalysisPanel {...props}/>);
   expect(localAnalysis.request).not.toHaveBeenCalled();
-  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'開始'}));});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'解析'}));});
   await act(async()=>{update({phase:'done',score:{kind:'cp',value:40,depth:8}});});
   expect(screen.getByRole('progressbar',{name:'全棋譜解析の進捗'})).toHaveAttribute('value','1');
   fireEvent.click(screen.getByRole('button',{name:/^1\./}));
@@ -30,12 +55,12 @@ it('starts explicitly, shows per-ply results on the matching frozen board, and p
   view.rerender(<RecordAnalysisPanel {...props}/>);
   expect(screen.getByRole('status',{name:'全棋譜解析の状態'})).toHaveTextContent('停止中');
   expect(screen.getByRole('progressbar',{name:'全棋譜解析の進捗'})).toHaveAttribute('value','1');
-  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'続きから再開'}));});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'再開'}));});
   expect(vi.mocked(localAnalysis.request).mock.lastCall?.[1]).toContain('moves 7g7f');
 });
 it('pauses on visibility loss without restarting when visible again',async()=>{
   render(<RecordAnalysisPanel game={game} owner="visibility" active onPrepare={async()=>true}/>);
-  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'開始'}));});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'解析'}));});
   const count=vi.mocked(localAnalysis.request).mock.calls.length;
   Object.defineProperty(document,'hidden',{configurable:true,value:true});
   act(()=>{document.dispatchEvent(new Event('visibilitychange'));});
@@ -48,7 +73,7 @@ it('removes its pending reload request when closed during preparation',async()=>
   vi.stubGlobal('crossOriginIsolated',false);
   const props={game,owner:'preparing',active:true,onPrepare:vi.fn(()=>new Promise<boolean>(()=>{}))};
   const view=render(<RecordAnalysisPanel {...props}/>);
-  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'開始'}));});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'解析'}));});
   expect(sessionStorage.getItem('fgmv:record-preparation:v1')).toContain('preparing');
   view.rerender(<RecordAnalysisPanel {...props} active={false}/>);
   expect(sessionStorage.getItem('fgmv:record-preparation:v1')).toBeNull();
@@ -58,7 +83,7 @@ it('preserves the request on a preparation reload visibility event but still per
   vi.stubGlobal('crossOriginIsolated',false);
   const props={game,owner:'reload',active:true,onPrepare:vi.fn(()=>new Promise<boolean>(()=>{}))};
   const view=render(<RecordAnalysisPanel {...props}/>);
-  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'開始'}));});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'解析'}));});
   vi.mocked(isAnalysisReloadPending).mockReturnValue(true);
   Object.defineProperty(document,'hidden',{configurable:true,value:true});
   act(()=>{document.dispatchEvent(new Event('visibilitychange'));});

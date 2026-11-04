@@ -51,6 +51,7 @@ export async function startStudy(page: Page, panel=page.locator('.unified-panel'
   await study.getByRole('button',{name:'起点へ',exact:true}).click();return study;
 }
 export async function settings(panel: Locator) {
-  await panel.getByRole('button',{name:'棋譜を開く'}).click();
-  await panel.getByRole('tab',{name:'設定',exact:true}).click();
+  const page=panel.page();
+  await panel.locator('.player-side').first().click();
+  await page.getByRole('button',{name:'設定を開く',exact:true}).click();
 }

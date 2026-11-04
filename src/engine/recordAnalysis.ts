@@ -28,6 +28,7 @@ export class RecordAnalysis {
     this.generation++;this.controller?.abort();this.cancel?.();this.cancel=undefined;this.release?.();this.release=undefined;
     if(this.state.phase==='running'||this.state.phase==='preparing')this.update({phase});
   }
+  clear() { this.stop();this.update({phase:'idle',game:undefined,results:[],message:undefined}); }
   async start(game:ParsedGame,seconds:RecordSeconds,prepare:(signal:AbortSignal)=>Promise<boolean>,resume=false) {
     if(!RECORD_TIMES.includes(seconds))return;
     this.stop();
