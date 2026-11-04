@@ -458,7 +458,7 @@ test('過去対局を選び、手動移動・再生・棋譜クリックを操�
   await expect(panel.getByLabel('現在手数')).toHaveText('1 / 20手',{ timeout: 2_000 });
   await panel.getByRole('button', { name: '棋譜を開く' }).click();
   await expect(panel.locator('.move-list')).toContainText(/▲|△/);
-  await panel.getByRole('button', { name: /^5\./ }).click();
+  await panel.getByRole('button', { name: /^5\./ }).click();await panel.getByRole('button',{name:'盤面に表示',exact:true}).click();
   await expect(panel.getByLabel('現在手数')).toHaveText('5 / 20手');
 });
 

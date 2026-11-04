@@ -18,7 +18,7 @@ test('five controls keep their order and touch targets on mobile and desktop, in
   await panel.getByRole('button',{name:'反転',exact:true}).click();
   await expect(panel.locator('.file-labels')).toHaveText(files === '987654321' ? '123456789' : '987654321');
   await panel.getByRole('button',{name:'棋譜を開く'}).click();
-  await panel.getByRole('button',{name:/^3\./}).click();await expect(panel.locator('.replay-status')).toHaveText(/^3 \//);
+  await panel.getByRole('button',{name:/^3\./}).click();await panel.getByRole('button',{name:'盤面に表示',exact:true}).click();await expect(panel.locator('.replay-status')).toHaveText(/^3 \//);
   await page.getByRole('button',{name:'設定を開く',exact:true}).click();await expect(panel.getByRole('dialog',{name:'設定',exact:true})).toBeVisible();await expect(panel.getByRole('tablist')).toHaveCount(0);
   await panel.getByRole('button',{name:'閉じる',exact:true}).click();
   await expect(page.getByRole('button',{name:'設定を開く',exact:true})).toBeFocused();

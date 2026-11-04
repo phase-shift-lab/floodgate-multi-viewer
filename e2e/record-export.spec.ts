@@ -56,7 +56,7 @@ test('study exports current path separately from the full source record',async({
  expect(sourceText.split(/\r?\n/).filter(l=>/^[+-]\d{4}[A-Z]{2}$/.test(l))).toHaveLength(origin);
  await study.getByRole('group',{name:'棋譜の種類'}).getByRole('button',{name:'変化'}).click();
  await expect.poll(()=>study.locator('.move-list').evaluate(list=>{
-  const box=list.getBoundingClientRect(),body=list.closest('.board-dialog-body')!.getBoundingClientRect(),toolbar=list.parentElement!.querySelector('.record-toolbar')!.getBoundingClientRect();
+  const box=list.getBoundingClientRect(),body=list.closest('.board-dialog-body')!.getBoundingClientRect(),toolbar=list.closest('.record-analysis')!.querySelector('.record-toolbar')!.getBoundingClientRect();
   const top=Math.max(box.top,body.top,toolbar.bottom),bottom=Math.min(box.bottom,body.bottom);
   return [...list.querySelectorAll('button')].filter(button=>{const r=button.getBoundingClientRect();return r.bottom>top&&r.top<bottom;}).length;
  })).toBeGreaterThanOrEqual(3);

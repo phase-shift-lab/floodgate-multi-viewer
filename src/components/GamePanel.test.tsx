@@ -91,7 +91,7 @@ describe('GamePanel live following', () => {
     expect(props.onFavorite).toHaveBeenCalledWith(props.summary.black);
     fireEvent.click(screen.getByRole('button',{name:'棋譜を開く'}));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button',{name:/^1\./}));
+    fireEvent.click(screen.getByRole('button',{name:/^1\./}));fireEvent.click(screen.getByRole('button',{name:'盤面に表示'}));
     expect(screen.getByLabelText('現在手数')).toHaveTextContent('1 / 2手');
     expect(screen.queryByRole('dialog')).toBeNull(); expect(onStudy).not.toHaveBeenCalled();
   });
@@ -102,7 +102,7 @@ describe('GamePanel live following', () => {
     fireEvent.click(screen.getByRole('button',{name:'閉じる'}));
     expect(screen.getByLabelText('現在手数')).toHaveTextContent('3 / 3手');
     fireEvent.click(screen.getByRole('button',{name:'棋譜を開く'}));
-    fireEvent.click(screen.getByRole('button',{name:/^3\./}));
+    fireEvent.click(screen.getByRole('button',{name:/^3\./}));fireEvent.click(screen.getByRole('button',{name:'盤面に表示'}));
     await pollNext(4); expect(screen.getByLabelText('現在手数')).toHaveTextContent('3 / 4手');
     expect(props.onAnalysisSnapshot).toHaveBeenLastCalledWith(expect.objectContaining({followingLatest:false}));
   });

@@ -647,8 +647,9 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .record-export select { max-width:100%; min-width:0; }
 .record-export output { flex-basis:100%; text-align:right; font-size:.8rem; overflow-wrap:anywhere; }
 .record-export output:empty { display:none; }
-.record-export.is-header { position:static; flex-wrap:nowrap; padding:0; border:0; gap:3px; }
+.record-export.is-header { position:static; flex-wrap:wrap; padding:0; border:0; gap:3px; }
 .record-export.is-header .record-export-selects,.record-export.is-header .record-export-buttons { gap:3px; flex:none; }
+.record-export.is-header .record-export-buttons { display:contents; }
 .record-export.is-header select { width:52px; padding:0 1px; font-size:16px; }
 .record-export.is-header button { padding:0 4px; font-size:.74rem; white-space:nowrap; }
 .record-export.is-header output { position:absolute; top:calc(100% + 4px); right:6px; max-width:calc(100% - 12px); padding:6px 8px; background:var(--paper); border:1px solid var(--line); border-radius:6px; text-align:left; pointer-events:none; }
@@ -881,37 +882,41 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
  .unified-panel > .connection { min-height:13px; line-height:1.2; padding-block:0; }
 }
 /* Full-record analysis stays inside the existing bounded dialog. */
+.dialog-record { width:min(80vw,1000px); height:fit-content; }
+.dialog-record .board-dialog-body { display:flex; overflow:hidden; scrollbar-gutter:auto; }
+.dialog-record .record-pane { flex:1; min-height:0; min-width:0; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; }
 .record-analysis { min-width:0; font-size:.8rem; padding:.6rem; }
-.record-toolbar { position:sticky; top:0; z-index:3; display:flex; align-items:center; justify-content:flex-end; gap:4px; background:var(--paper); padding-bottom:.4rem; border-bottom:1px solid var(--line); }
-.record-toolbar .record-kind { flex:1; min-width:0; padding:0; gap:4px; }
-.record-toolbar .record-kind button { min-width:44px; padding:0 3px; font-size:.8rem; }
-.record-analysis > .move-list { max-height:430px; overflow:auto; margin-top:.5rem; scroll-padding-block:1rem; }
+.record-toolbar { position:sticky; top:0; z-index:3; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px; background:var(--paper); padding-bottom:.4rem; border-bottom:1px solid var(--line); }
+.record-toolbar .record-kind { flex:0 1 auto; width:min(204px,calc(100% - 118px)); min-width:min-content; padding:0; gap:4px; }
+.record-toolbar .record-kind button { flex:1 1 0; min-width:max(44px,3.5em); max-width:100px; padding:0 10px; font-size:.8rem; }
+.record-analysis > .move-list { max-height:none; overflow:visible; margin-top:.5rem; scroll-padding-block:1rem; }
 .record-analysis-note button,.record-position > button { min-height:44px; }
-.record-analysis-settings { display:flex; gap:4px; align-items:center; }
+.record-analysis-settings { display:flex; gap:4px; align-items:center; margin-left:auto; }
 .record-analysis-settings button,.record-analysis-settings select { min-height:44px; min-width:44px; padding:0 5px; }
 .record-analysis-settings select { font-size:16px; width:66px; }
 .record-analysis-note { color:var(--muted); font-size:.7rem; line-height:1.5; }
 .record-analysis progress { width:100%; accent-color:var(--accent); }
 .record-score-chart { display:block; width:100%; max-height:85px; color:var(--ink); background:var(--paper-2); border:1px solid var(--line); border-radius:6px; }
 .record-score-chart text { fill:currentColor; font-size:12px; opacity:.7; }
-.record-analysis-results { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:.7rem; margin-top:.6rem; }
-.record-position { min-width:0; }
+.record-analysis-results { display:grid; grid-template-columns:minmax(320px,360px) minmax(0,1fr); gap:1rem; margin-top:.6rem; align-items:start; }
+.record-list { grid-column:1; grid-row:1; min-width:0; }
+.record-list .move-list { max-height:none; overflow:visible; }
+.record-position { grid-column:2; grid-row:1; min-width:0; width:100%; max-width:480px; justify-self:center; position:sticky; top:calc(var(--record-toolbar-height,52px) + .5rem); }
 .record-position > strong { display:block; font-size:.75rem; }
 .app-shell .boards .unified-panel .record-position .board-wrap { width:100%; padding:0 12px 0 0; height:auto; }
 .app-shell .boards .unified-panel .record-position .board-stack { width:100%; max-width:100%; --board-piece-font-size:clamp(.65rem,6.8cqw,1.2rem); --hand-count-font-size:.65rem; }
 .record-position output { display:block; font:700 1.6rem Arial,sans-serif; color:var(--accent); }
 .record-pv { padding-left:1rem; font-size:.72rem; overflow-wrap:anywhere; }
 .record-pv p { margin-top:.2rem; }
-.record-result-list { padding:0; margin:0; list-style:none; max-height:430px; overflow:auto; overscroll-behavior:contain; }
+.record-result-list { padding:0; margin:0; list-style:none; overflow:visible; }
 .record-result-list button { display:flex; width:100%; min-height:44px; gap:.3rem; align-items:center; justify-content:space-between; font-size:.75rem; text-align:left; }
 .record-result-list button[aria-current='step'] { background:var(--accent-soft); border-color:var(--accent); }
 .record-analysis-view { display:none; }
-@media(max-width:520px) {
+@media(max-width:899px) {
  .record-analysis-view { display:flex; gap:.3rem; margin-top:.5rem; }
  .record-analysis-view button { flex:1; min-height:44px; font-size:.7rem; }
  .record-analysis-view button[aria-pressed='true'] { background:var(--accent-soft); }
  .record-analysis-results { grid-template-columns:minmax(0,1fr); }
- .record-analysis-results.is-list .record-position,.record-analysis-results.is-position .record-result-list { display:none; }
- .record-position { width:100%; max-width:260px; margin-inline:auto; }
- .record-result-list { max-height:260px; }
+ .record-analysis-results.is-list .record-position,.record-analysis-results.is-position .record-list { display:none; }
+ .record-position { grid-column:1; grid-row:1; position:static; width:100%; max-width:260px; margin-inline:auto; }
 }

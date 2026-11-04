@@ -1,5 +1,5 @@
-import { useEffect, useEffectEvent, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { boardAt, formatFinalReason, formatMoveInGame } from '../domain/csa';
+import { useEffect, useEffectEvent, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { boardAt, formatMoveInGame } from '../domain/csa';
 import { scoreLabel } from '../domain/localEvaluation';
 import { validatedPv } from '../domain/studyRules';
 import type { ParsedGame } from '../domain/types';
@@ -15,10 +15,13 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
   const [controller]=useState(()=>new RecordAnalysis());
   const state=useSyncExternalStore(controller.subscribe,controller.getState);
   const [seconds,setSeconds]=useState<RecordSeconds>(()=>peekRecordRecovery(owner)?.seconds??1);
-  const [selected,setSelected]=useState(0);
+  const [selection,setSelection]=useState<{ply:number;origin:number}>();
+  const setSelected=(next:number)=>setSelection({ply:next,origin:ply});
+  const toolbar=useRef<HTMLDivElement>(null);
   const [resultView,setResultView]=useState<'list'|'position'>('list');
   const [recovered]=useState(()=>peekRecordRecovery(owner));
   const snapshot=state.game??game;
+  const selected=Math.max(0,Math.min(selection&&(state.game||selection.origin===ply)?selection.ply:ply,snapshot.moveList.length));
   const board=useMemo(()=>boardAt(snapshot,selected),[snapshot,selected]);
   const result=state.results[selected];
   const busy=state.phase==='preparing'||state.phase==='running';
@@ -52,17 +55,22 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
     queueMicrotask(()=>{if(!cancelled)recover();});
     return()=>{cancelled=true;};
   },[recovered]);
+  useLayoutEffect(()=>{
+    const element=toolbar.current;if(!active||!element)return;
+    const update=()=>element.parentElement?.style.setProperty('--record-toolbar-height',element.getBoundingClientRect().height+'px');
+    update();if(typeof ResizeObserver==='undefined')return;
+    const observer=new ResizeObserver(update);observer.observe(element);return()=>observer.disconnect();
+  },[active]);
   const total=snapshot.moveList.length+1;
   const phases={idle:'開始前',preparing:'棋譜の検証・解析準備中',running:'解析中',stopped:'停止中',paused:'非表示のため一時停止',done:'全棋譜の解析完了',error:'解析停止'};
   const remaining=Math.ceil((total-state.results.length)*(busy?state.seconds:seconds)/60);
   const changed=Boolean(state.game&&(snapshot.sourceText!==game.sourceText||snapshot.moveList.length!==game.moveList.length||snapshot.moveList.some((m,i)=>m.raw!==game.moveList[i]?.raw)));
-  const ending=formatFinalReason(snapshot);
   const resumable=Boolean(state.game&&state.phase!=='done'&&seconds===state.seconds);
   const pick=(ply:number)=>{setSelected(ply);setResultView('position');};
   if(!active)return null;
   return <section className="record-analysis" aria-label="全棋譜解析">
     <RecordExport game={snapshot} isVariation={isVariation} headerTarget={headerTarget}/>
-    <div className="record-toolbar">{recordSelector}
+    <div ref={toolbar} className="record-toolbar">{recordSelector}
     <div className="record-analysis-settings"><select aria-label="全棋譜の解析時間" value={seconds} disabled={busy} onChange={event=>setSeconds(Number(event.target.value) as RecordSeconds)}>{RECORD_TIMES.map(time=><option key={time} value={time}>{time}秒</option>)}</select>
       <button disabled={!onPrepare} onClick={()=>{if(busy){controller.stop();clearRecordRecovery(owner);}else void start(resumable,undefined);}}>{busy?'停止':resumable?'再開':'解析'}</button>
     </div></div>
@@ -77,6 +85,7 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
       <polyline fill="none" stroke="var(--accent)" strokeWidth="2" points={state.results.map((entry,ply)=>entry.score?`${10+580*ply/Math.max(1,total-1)},${65-Math.max(-3000,Math.min(3000,entry.score.kind==='mate'?Math.sign(entry.score.value)*3000:entry.score.value))/3000*50}`:'').join(' ')}/>
       {state.results.map((entry,ply)=>entry.score&&<circle key={ply} cx={10+580*ply/Math.max(1,total-1)} cy={65-Math.max(-3000,Math.min(3000,entry.score.kind==='mate'?Math.sign(entry.score.value)*3000:entry.score.value))/3000*50} r={selected===ply?5:2} fill="currentColor"/>)}
     </svg>}
+    </>}
     <div className="record-analysis-view" role="group" aria-label="解析結果の表示"><button aria-pressed={resultView==='list'} onClick={()=>setResultView('list')}>棋譜一覧</button><button aria-pressed={resultView==='position'} onClick={()=>setResultView('position')}>選択局面・読み筋</button></div>
     <div className={'record-analysis-results is-'+resultView}>
       <div className="record-position"><strong>{selected}手目 {selected?formatMoveInGame(snapshot,selected):'開始局面'} · {board.turn==='+'?'▲先手番':'△後手番'}</strong>
@@ -85,10 +94,8 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
         {onPick&&<button onClick={()=>onPick(selected,snapshot)}>盤面に表示</button>}
         <ol className="record-pv">{result?.candidates.map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{validatedPv(board,candidate.pv,12).labels.join(' → ')||'読み筋なし'}</p></li>)}</ol>
       </div>
-      <ol className="record-result-list" aria-label="解析した棋譜"><li><button aria-current={selected===0?'step':undefined} onClick={()=>pick(0)}>0. 開始局面 <b>{state.results[0]?.score?scoreLabel(state.results[0].score):'—'}</b></button></li>{snapshot.moveList.map((move,index)=><li key={index}><button aria-current={selected===index+1?'step':undefined} onClick={()=>pick(index+1)}><span>{index+1}. {formatMoveInGame(snapshot,index+1)}{move.time!==undefined&&<small> · {move.time}秒</small>}</span><b>{state.results[index+1]?.score?scoreLabel(state.results[index+1].score!):'—'}</b></button></li>)}{ending&&<li className="move-result">{snapshot.moveList.length+1}. {ending}</li>}</ol>
+      <div className="record-list"><MoveList game={snapshot} ply={selected} active={active} onPick={pick} scores={state.game?state.results.map(result=>result.score):undefined}/></div>
     </div>
-    </>}
-    {!state.game&&<MoveList game={game} ply={Math.min(ply,game.moveList.length)} active={active} onPick={next=>{if(onPick)onPick(next,game);else pick(next);}}/>}
     <details className="record-analysis-note"><summary>解析の詳細</summary>つようら王11micro · 先手基準。1局面ずつ端末で解析します。探索時間の目安は残り約{remaining}分＋準備時間です。CPU・電池を使用します。閉じると停止し、結果はこのタブ内だけに保持します。再読み込みで結果は消えます。{state.game&&<button disabled={busy||!onPrepare} onClick={()=>void start(false,undefined)}>最初から解析</button>}</details>
   </section>;
 }

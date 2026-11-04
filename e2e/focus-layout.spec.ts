@@ -9,12 +9,12 @@ test('one board surface in both states: square cells, stable controls, popup wit
     for(const viewport of [{width:1440,height:900},{width:1280,height:720},{width:393,height:852},{width:320,height:660},{width:852,height:393}]){
       await page.setViewportSize(viewport);
       await settleBoard(panel);
-      await expect.poll(()=>panel.locator('.shogi-board').evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(230);
+      await expect.poll(()=>panel.locator('.shogi-board').first().evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(230);
       const geometry=await panel.evaluate(el=>{const b=el.querySelector('.shogi-board')!.getBoundingClientRect(),cells=[...el.querySelectorAll('.square')].map(s=>s.getBoundingClientRect());return {square:Math.abs(b.width-b.height),equal:cells.every(c=>Math.abs(c.width-c.height)<1),overflow:document.documentElement.scrollWidth>innerWidth+1,right:el.querySelector('.rank-labels')!.getBoundingClientRect().right,panelRight:el.getBoundingClientRect().right}});
       expect(geometry.square).toBeLessThan(1);expect(geometry.equal).toBe(true);expect(geometry.overflow).toBe(false);expect(geometry.right).toBeLessThanOrEqual(geometry.panelRight);
       await expect(panel.locator('.local-evaluation')).toHaveCount(1);
-      const before=await panel.locator('.shogi-board').evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,x:r.x+scrollX,y:r.y+scrollY}});await panel.getByRole('button',{name:'棋譜を開く'}).click();await expect(page.getByRole('dialog')).toBeVisible();
-      expect(await panel.locator('.shogi-board').evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,x:r.x+scrollX,y:r.y+scrollY}})).toEqual(before);await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
+      const before=await panel.locator('.shogi-board').first().evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,x:r.x+scrollX,y:r.y+scrollY}});await panel.getByRole('button',{name:'棋譜を開く'}).click();await expect(page.getByRole('dialog')).toBeVisible();
+      expect(await panel.locator('.shogi-board').first().evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,x:r.x+scrollX,y:r.y+scrollY}})).toEqual(before);await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).toHaveCount(0);
     }
     await page.setViewportSize({width:1440,height:900});
   }
@@ -32,8 +32,8 @@ test('entering and leaving study from a single panel keeps the board in place',a
   await disabledAnalysis(page);await page.goto(base);await page.locator('.shogi-board').first().waitFor();await count(page,1);
   const panel=page.locator('.unified-panel');
   await settleBoard(panel);
-  const before=await panel.locator('.shogi-board').boundingBox();
-  await startStudy(page);expect(await panel.locator('.shogi-board').boundingBox()).toEqual(before);
+  const before=await panel.locator('.shogi-board').first().boundingBox();
+  await startStudy(page);expect(await panel.locator('.shogi-board').first().boundingBox()).toEqual(before);
   await panel.getByRole('button',{name:'本譜へ戻る'}).click();
-  expect(await panel.locator('.shogi-board').boundingBox()).toEqual(before);
+  expect(await panel.locator('.shogi-board').first().boundingBox()).toEqual(before);
 });

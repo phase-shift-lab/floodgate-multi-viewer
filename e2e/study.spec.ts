@@ -31,7 +31,7 @@ test('picking a mainline move saves the variation and resume restores it',async(
   await study.locator('[data-square="77"]').click();await study.locator('[data-square="76"]').click();
   await study.getByRole('button',{name:'棋譜を開く'}).click();
   await study.getByRole('button',{name:'本譜',exact:true}).click();
-  await study.getByRole('button',{name:/^3\./}).click();
+  await study.getByRole('button',{name:/^3\./}).click();await study.getByRole('button',{name:'盤面に表示',exact:true}).click();
   await expect(page.locator('.is-studying')).toHaveCount(0);
   const panel=page.locator('.unified-panel');await expect(panel.locator('.replay-status')).toHaveText(/^3 \//);
   await expect(panel.getByRole('button',{name:'棋譜を開く'})).toBeFocused();

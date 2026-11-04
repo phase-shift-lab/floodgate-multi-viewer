@@ -10,6 +10,7 @@ vi.mock('../engine/isolation',()=>({preparationRecovery:undefined,retryAnalysisP
 const game=parseCsa('V2.2\nN+A\nN-B\nPI\n+\n+7776FU\n-3334FU');
 let update:(state:AnalysisState)=>void;
 beforeEach(()=>{
+  Element.prototype.scrollIntoView=vi.fn();
   vi.mocked(isAnalysisReloadPending).mockReturnValue(false);
   Object.defineProperty(document,'hidden',{configurable:true,value:false});
   vi.stubGlobal('crossOriginIsolated',true);
@@ -21,7 +22,8 @@ it('opens as a score sheet without starting analysis and navigates the selected 
  expect(localAnalysis.request).not.toHaveBeenCalled();
  expect(screen.queryByRole('progressbar')).toBeNull();expect(screen.queryByRole('img')).toBeNull();
  expect(screen.getByRole('button',{name:/^2\./})).toHaveAttribute('aria-current','step');
- fireEvent.click(screen.getByRole('button',{name:/^1\./}));expect(onPick).toHaveBeenCalledWith(1,game);
+ fireEvent.click(screen.getByRole('button',{name:/^1\./}));expect(onPick).not.toHaveBeenCalled();
+ expect(screen.getByRole('grid',{name:'将棋盤 1手目'})).toBeInTheDocument();fireEvent.click(screen.getByText('盤面に表示'));expect(onPick).toHaveBeenCalledWith(1,game);
 });
 it('keeps list, copy and navigation on the frozen record when new moves arrive, and refreshes explicitly',async()=>{
  const writeText=vi.fn().mockResolvedValue(undefined),onPick=vi.fn();
