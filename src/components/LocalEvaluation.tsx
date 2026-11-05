@@ -5,10 +5,12 @@ import type { BoardState } from '../domain/types';
 import { hasAnalysisSetup, removeAnalysisSetup, retryAnalysisPreparation } from '../engine/isolation';
 import { localAnalysis, type AnalysisState, type AnalysisOptions } from '../engine/localAnalysis';
 import { validatedPv } from '../domain/studyRules';
+import { useWorkspace } from './WorkspaceContext';
 
 interface Props { board: BoardState; position: string; enabled: boolean; onEnabledChange: (enabled: boolean) => void; onPrepare: (signal?: AbortSignal) => Promise<boolean>; study?: boolean; milliseconds?: AnalysisOptions['milliseconds']; requestId?: number; stopped?: boolean; suspended?: boolean; detailsTarget?: HTMLElement | null; onDetails?: () => void }
 
 export function LocalEvaluation({ board, position, enabled, onEnabledChange, onPrepare, study = false, milliseconds = 500, requestId = 0, stopped = false, suspended = false, detailsTarget, onDetails }: Props) {
+  const workspace=useWorkspace();
   const key = useId();
   const [result, setResult] = useState<{ position: string; state: AnalysisState }>();
   const [preparing, setPreparing] = useState(false);
@@ -62,6 +64,23 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
         <div className="analysis-settings"><button type="button" disabled={removing} aria-pressed={enabled} onClick={toggle}>{`端末で解析 ${enabled ? 'ON' : 'OFF'}`}</button><a href={`${import.meta.env.BASE_URL}engine/NOTICE.txt`} target="_blank" rel="noreferrer">ライセンス</a>{!study && hasAnalysisSetup() && <button type="button" disabled={removing} onClick={() => { setRemoving(true); onEnabledChange(false); void removeAnalysisSetup().catch((error) => { setError(String(error)); setRemoving(false); }); }}>{removing ? '解析用設定を解除中…' : '解析用設定を解除して再読み込み'}</button>}</div>
         <p className="analysis-note">{study ? `端末で1局面${milliseconds/1000}秒、各12手まで表示します。解析時間は設定タブで変更できます。` : '端末で約0.5秒ずつ順番に解析します。各6手まで表示します。'}数値・読み筋は参考値です。ゲージは勝率ではありません。</p>
       </div></details>;
+  if(workspace){
+    const primary=candidates.find(candidate=>candidate.rank===1);
+    return <section className={`local-evaluation integrated-evaluation ${!enabled?'is-off':''}`} aria-label="AI局面解説" style={{'--black-share':`${advantageScale(score)}%`} as CSSProperties}>
+      <div className="integrated-evaluation-head"><div className="integrated-score"><span>{leader}</span><output className="evaluation-number" data-kind={score?.kind} aria-label="先手基準の評価値">{score?<>{scoreLabel({...score,bound:undefined})}{score.bound&&<small>{score.bound==='lowerbound'?'以上':'以下'}</small>}</>:'—'}</output><small className="evaluation-status">{!enabled?'解析OFF':stopped?'停止中':error?'解析停止':preparing?'準備中':label||'解析待ち'}</small></div>
+      <div className="integrated-pv"><small>第一候補・読み筋 · 先手基準{score?` · 深さ${score.depth}`:''}</small><p>{primary?.labels.length?<><strong>{first}</strong>{primary.labels.length>1?' → '+primary.labels.slice(1).join(' → '):''}</>:'読み筋はまだ取得できていません。'}</p></div></div>
+      <div className="advantage-meter" role="img" aria-label="先手基準の形勢ゲージ。勝率ではありません。"><span/></div>
+      <details className="integrated-candidates"><summary>他の候補・解析設定</summary>
+        <ol>{candidates.filter(candidate=>candidate.rank!==1&&candidate.labels.length).map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{candidate.labels.join(' → ')}</p></li>)}</ol>
+        {candidates.some(candidate=>candidate.truncated)&&<p>読み筋の一部を表示できません。</p>}
+        {(error||state?.message)&&<p role="alert">{error||state?.message}</p>}
+        <button disabled={removing} aria-pressed={enabled} onClick={toggle}>端末で解析 {enabled?'ON':'OFF'}</button><a href={`${import.meta.env.BASE_URL}engine/NOTICE.txt`} target="_blank" rel="noreferrer">ライセンス</a>
+        {!study&&hasAnalysisSetup()&&<button disabled={removing} onClick={()=>{setRemoving(true);onEnabledChange(false);void removeAnalysisSetup().catch(error=>{setError(String(error));setRemoving(false);});}}>解析用設定を解除して再読み込み</button>}
+        <p>つようら王11micro · ゲージは勝率ではありません。端末のCPU・電池を使用します。</p>
+      </details>
+      {enabled&&!stopped&&(error||state?.message)&&<span className="analysis-error" role="alert">解析を開始できませんでした。<button onClick={retry}>解析を再試行</button></span>}
+    </section>;
+  }
   return <section className={`local-evaluation ${!enabled ? 'is-off' : ''}`} aria-label="AI局面解説" style={{ '--black-share': `${advantageScale(score)}%` } as CSSProperties}>
     {onDetails && <button className="evaluation-open" aria-label="候補手・読み筋を開く" onClick={event => { event.currentTarget.focus({preventScroll:true}); onDetails(); }}><span>読み筋 ›</span></button>}
     <div className="evaluation-head">

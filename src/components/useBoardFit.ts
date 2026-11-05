@@ -7,6 +7,26 @@ export function useBoardFit() {
   useLayoutEffect(() => {
     const root=ref.current;
     if (!root || typeof ResizeObserver === 'undefined') return;
+    if(root.classList.contains('integrated-panel')){
+      let pending=0;
+      const fitIntegrated=()=>{
+        const wrap=root.querySelector<HTMLElement>('.workspace-board > .board-wrap'),stack=wrap?.querySelector<HTMLElement>('.board-stack');
+        const column=root.querySelector<HTMLElement>('.workspace-board');
+        if(!wrap||!stack||!column||!wrap.clientHeight||!wrap.clientWidth)return;
+        let low=40,high=Math.min(800,wrap.clientWidth-24),best=40;
+        for(let pass=0;pass<12;pass++){
+          const middle=Math.floor((low+high)/2);root.style.setProperty('--unified-board-size',middle+'px');
+          if(stack.getBoundingClientRect().height<=wrap.clientHeight-2){best=middle;low=middle+1;}else high=middle-1;
+          if(low>high)break;
+        }
+        root.style.setProperty('--unified-board-size',best+'px');
+        const board=stack.querySelector<HTMLElement>('.shogi-board');if(board){const rect=board.getBoundingClientRect();root.style.setProperty('--control-width',rect.width+'px');root.style.setProperty('--control-offset',(rect.left-column.getBoundingClientRect().left)+'px');}
+      };
+      const schedule=()=>{cancelAnimationFrame(pending);pending=requestAnimationFrame(fitIntegrated);};
+      const observer=new ResizeObserver(schedule);observer.observe(root);const body=root.querySelector('.workspace-body');if(body)observer.observe(body);
+      window.addEventListener('resize',schedule);fitNow.current=fitIntegrated;schedule();
+      return()=>{fitNow.current=undefined;observer.disconnect();cancelAnimationFrame(pending);window.removeEventListener('resize',schedule);};
+    }
     let frame=0;
     const fit=() => {
       if (root.querySelector(':scope > dialog[open]')) return;

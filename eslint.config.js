@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['output/playwright', 'dist', 'coverage', 'playwright-report', 'test-results', 'public/engine/yaneuraou.js'] },
+  { ignores: ['output/**', 'dist', 'coverage', 'playwright-report', 'test-results', 'public/engine/yaneuraou.js'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { files: ['public/analysis-isolation-sw.js', 'public/engine/analysis-worker.js'], languageOptions: { globals: globals.worker } },

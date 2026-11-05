@@ -8,7 +8,7 @@ const STATS_SESSION_KEY = 'fgmv:stats-session:v1';
 const STATS_SESSION_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
 
 export const DEFAULT_SETTINGS: ViewerSettings = {
-  boardCount: typeof matchMedia === 'function' && matchMedia('(max-width: 767px)').matches ? 1 : 4,
+  boardCount: typeof matchMedia === 'function' && matchMedia('(max-width: 767px)').matches ? 1 : 2,
   playbackSeconds: 1,
   orientation: 'black',
   theme: 'dark',

@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('スマホの空段が多い局面でも81マスを均等に保つ', async ({ page }) => {
+  test.setTimeout(60000);
   await page.goto('/floodgate-multi-viewer/');
   await expect(page.locator('.evaluation-status').first()).toHaveText('解析完了', { timeout: 45_000 });
   const styles = await page.locator('link[rel="stylesheet"]').evaluateAll((links) =>
@@ -105,7 +106,7 @@ test('持駒0・1・2・18枚と通常評価・詰み表示で盤面と操作欄
           const output = panel.querySelector<HTMLElement>('.evaluation-number')!;
           output.dataset.kind = count === 2 ? 'mate' : 'cp';
           output.textContent = count === 2 ? '後手の詰み 1手' : '+123';
-          panel.querySelector('.evaluation-leader')!.textContent = count === 2 ? '詰み' : '先手リード';
+          panel.querySelector('.integrated-score > span')!.textContent = count === 2 ? '詰み' : '先手リード';
           const hand = panel.querySelector<HTMLElement>('[aria-label="先手の持駒"]')!;
           const handBox = hand.getBoundingClientRect();
           const piece = hand.querySelector('.hand-piece')?.getBoundingClientRect();

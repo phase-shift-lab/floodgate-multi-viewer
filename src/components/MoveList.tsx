@@ -8,7 +8,11 @@ export function MoveList({ game, ply, active, onPick, scores }: { game: ParsedGa
   // Scroll once on opening, never steal the scroll position on live updates.
   useEffect(() => {
     if (!active) return;
-    const frame = requestAnimationFrame(() => list.current?.querySelector<HTMLElement>('[aria-current="step"]')?.scrollIntoView({ block: 'center' }));
+    const frame = requestAnimationFrame(() => {
+      const row=list.current?.querySelector<HTMLElement>('[aria-current="step"]');
+      const container=list.current?.closest<HTMLElement>('.inline-record-scroll')??list.current;
+      if(row&&container)container.scrollTop+=row.getBoundingClientRect().top-container.getBoundingClientRect().top-(container.clientHeight-row.getBoundingClientRect().height)/2;
+    });
     return () => cancelAnimationFrame(frame);
   }, [active]);
   const reason = formatFinalReason(game);

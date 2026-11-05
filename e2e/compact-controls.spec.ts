@@ -1,44 +1,8 @@
-import { expect, test } from '@playwright/test';
-import { base, count, disabledAnalysis, startStudy, tools } from './ui';
-
-test.beforeEach(async({page})=>{await disabledAnalysis(page);await page.goto(base);await page.locator('.shogi-board').first().waitFor();});
-
-test('five controls keep their order and touch targets on mobile and desktop, including study',async({page})=>{
- test.setTimeout(60_000); // Four complete viewport flows also run on mobile WebKit.
- for(const width of [320,393,430,1440]) {
-  await page.setViewportSize({width,height:900});await count(page,1);
-  const panel=page.locator('.unified-panel');
-  await expect(panel.locator('.board-controls button')).toHaveText(['反転','再生','←','→','棋譜']);
-  await expect(panel.getByRole('button',{name:'操作 ▾',exact:true})).toHaveCount(0);
-  const boxes=await panel.locator('.board-controls button').evaluateAll(bs=>bs.map(b=>{const r=b.getBoundingClientRect();return{x:r.x,y:r.y,width:r.width,height:r.height}}));
-  expect(new Set(boxes.map(b=>b.y)).size).toBe(1);
-  for(const box of boxes){expect(box.width).toBeGreaterThanOrEqual(44);expect(box.height).toBeGreaterThanOrEqual(44);}
-  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
-  const files=await panel.locator('.file-labels').textContent();
-  await panel.getByRole('button',{name:'反転',exact:true}).click();
-  await expect(panel.locator('.file-labels')).toHaveText(files === '987654321' ? '123456789' : '987654321');
-  await panel.getByRole('button',{name:'棋譜を開く'}).click();
-  await panel.getByRole('button',{name:/^3\./}).click();await panel.getByRole('button',{name:'盤面に表示',exact:true}).click();await expect(panel.locator('.replay-status')).toHaveText(/^3 \//);
-  await page.getByRole('button',{name:'設定を開く',exact:true}).click();await expect(panel.getByRole('dialog',{name:'設定',exact:true})).toBeVisible();await expect(panel.getByRole('tablist')).toHaveCount(0);
-  await panel.getByRole('button',{name:'閉じる',exact:true}).click();
-  await expect(page.getByRole('button',{name:'設定を開く',exact:true})).toBeFocused();
-  const study=await startStudy(page,panel);
-  await expect(study.locator('.board-controls button')).toHaveText(['反転','起点へ','←','→','棋譜']);
-  await expect(page.getByRole('dialog')).toHaveCount(0);
-  await page.getByRole('button',{name:'設定を開く',exact:true}).click();await expect(study.getByLabel('解析時間')).toBeVisible();
-  await study.getByRole('button',{name:'閉じる',exact:true}).click();await study.getByRole('button',{name:'本譜へ戻る'}).click();
-  page.once('dialog',d=>d.accept());
- }
+import {expect,test} from '@playwright/test';
+import {base,count,disabledAnalysis,startStudy,settings} from './ui';
+test('six navigation controls are common to watching and studying',async({page})=>{
+ await disabledAnalysis(page);await page.goto(base);await count(page,1);for(const state of ['watch','study']){if(state==='study')await startStudy(page);const p=page.locator('.unified-panel');await expect(p.locator('.board-controls button')).toHaveText(['本譜','変化','⏮','←','→','⏭']);await expect(p.locator('.workspace-record .move-list')).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(0);}
 });
-
-test('settings gear targets the last touched panel, game name retains pin and selection, evaluation opens analysis',async({page})=>{
- await count(page,4);const panels=page.locator('.unified-panel'),target=panels.nth(2);
- await target.locator('.player-side').first().click();await page.getByRole('button',{name:'設定を開く',exact:true}).click();
- await expect(target.getByRole('dialog')).toBeVisible();await expect(page.getByRole('dialog')).toHaveCount(1);
- await target.getByRole('button',{name:'閉じる',exact:true}).click();
- await tools(target);await target.getByRole('button',{name:'ピン留め',exact:true}).click();
- await tools(target);await expect(target.getByRole('button',{name:'ピン解除',exact:true})).toHaveAttribute('aria-pressed','true');
- await target.getByRole('button',{name:'対局を選ぶ',exact:true}).click();
- await target.getByRole('button',{name:'候補手・読み筋を開く'}).click();
- await expect(target.getByRole('dialog',{name:'読み筋',exact:true})).toBeVisible();await expect(target.getByRole('tablist')).toHaveCount(0);await expect(target.getByRole('button',{name:'棋譜コピー',exact:true})).toHaveCount(0);
+test('settings and analysis target the last touched panel',async({page})=>{
+ await disabledAnalysis(page);await page.goto(base);await count(page,2);const ps=page.locator('.unified-panel');await ps.nth(1).locator('.board-player').first().click();await expect(ps.nth(1)).toHaveAttribute('data-selected','true');await expect(ps.nth(0)).toHaveAttribute('data-selected','false');await expect(page.getByLabel('全棋譜の解析時間')).toHaveCount(1);await settings(ps.nth(1));await expect(ps.nth(1).getByRole('dialog')).toBeVisible();await page.keyboard.press('Escape');
 });

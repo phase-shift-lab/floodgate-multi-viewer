@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialBoard } from '../domain/csa';
 import { localAnalysis } from '../engine/localAnalysis';
 import { LocalEvaluation } from './LocalEvaluation';
+import { WorkspaceContext } from './WorkspaceContext';
 
 vi.mock('../engine/localAnalysis',()=>({localAnalysis:{request:vi.fn(()=>vi.fn()),retry:vi.fn()}}));
 vi.mock('../engine/isolation',()=>({hasAnalysisSetup:()=>false,removeAnalysisSetup:vi.fn(),retryAnalysisPreparation:vi.fn()}));
@@ -12,6 +13,15 @@ const flush=async()=>{await act(async()=>{await Promise.resolve();});};
 function props(){return{board:createInitialBoard(),position:'position-a',enabled:true,onEnabledChange:vi.fn(),onPrepare:vi.fn<((signal?:AbortSignal)=>Promise<boolean>)>()};}
 
 describe('analysis preparation lifetime',()=>{
+ it('integrates the first PV once and keeps the score bound separate from the number',()=>{
+  vi.stubGlobal('crossOriginIsolated',true);const p=props();
+  const view=render(<WorkspaceContext.Provider value={{layout:'auto',selected:true,controlsTarget:null}}><LocalEvaluation {...p}/></WorkspaceContext.Provider>);
+  const score={kind:'cp' as const,value:140,depth:12,bound:'lowerbound' as const};
+  act(()=>{vi.mocked(localAnalysis.request).mock.calls[0][3]({phase:'done',score,candidates:[{rank:1,score,pv:['7g7f','3c3d']}]});});
+  expect(screen.getByLabelText('先手基準の評価値')).toHaveTextContent('+140以上');expect(screen.getByLabelText('先手基準の評価値').querySelector('small')).toHaveTextContent('以上');
+  expect(view.container.querySelector('.integrated-pv strong')).toHaveTextContent('▲７六歩');expect(view.container.querySelector('.integrated-pv p')).toHaveTextContent('△３四歩');
+  expect(view.container.querySelectorAll('.first-candidate')).toHaveLength(0);
+ });
  it('does not cancel or restart preparation when the displayed position changes',async()=>{
   const p=props();let signal:AbortSignal|undefined;
   p.onPrepare.mockImplementation(s=>{signal=s;return new Promise(()=>{});});

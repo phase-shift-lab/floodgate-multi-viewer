@@ -25,7 +25,7 @@ export function DetailPanel({ open, onClose, tab, onHeaderTarget, children }: {
     const box = event.currentTarget.getBoundingClientRect();
     if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) onClose();
   }}>
-    <header className="board-dialog-header"><strong id={id}>{TITLES[tab]}</strong>{tab==='record'&&<div className="record-header-actions" ref={onHeaderTarget}/>}<button className="dialog-close" aria-label="閉じる" onClick={onClose}>×</button></header>
+    <header className="board-dialog-header"><strong id={id} className={tab==='record'?'sr-only':undefined}>{TITLES[tab]}</strong>{tab==='record'&&<div className="record-header-actions" ref={onHeaderTarget}/>}<button className="dialog-close" aria-label="閉じる" onClick={onClose}>×</button></header>
     <div className="board-dialog-body" aria-labelledby={id}>{children}</div>
   </dialog>;
 }

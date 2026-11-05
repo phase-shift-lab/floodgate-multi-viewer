@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title">
+ <title id="title">夜明け：駒の向こうに昇る新時代</title>
+ <path d="M128 20 205 62 226 232H30L51 62Z" fill="#D8AF61"/>
+ <path d="M128 38 190 72 207 214H49L66 72Z" fill="#201F1B"/>
+ <path d="M78 150a50 50 0 0 1 100 0Z" fill="#D94D3D"/>
+ <path d="M128 63v19m-50 5 13 15m87-15-13 15" stroke="#D8AF61" stroke-width="10"/>
+ <path d="m55 171 73-39 73 39v16l-73-39-73 39Z" fill="#D8AF61"/>
+ <path d="M68 201h120" stroke="#D8AF61" stroke-width="8"/>
+</svg>

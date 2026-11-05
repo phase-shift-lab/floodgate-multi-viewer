@@ -4,6 +4,7 @@ import {parseCsa} from '../domain/csa';
 import {localAnalysis,type AnalysisState} from '../engine/localAnalysis';
 import {RecordAnalysisPanel} from './RecordAnalysisPanel';
 import {isAnalysisReloadPending} from '../engine/isolation';
+import {WorkspaceContext} from './WorkspaceContext';
 
 vi.mock('../engine/localAnalysis',()=>({localAnalysis:{request:vi.fn(),reserve:vi.fn(()=>vi.fn()),retry:vi.fn()}}));
 vi.mock('../engine/isolation',()=>({preparationRecovery:undefined,retryAnalysisPreparation:vi.fn(),isAnalysisReloadPending:vi.fn(()=>false)}));
@@ -17,6 +18,21 @@ beforeEach(()=>{
   vi.mocked(localAnalysis.request).mockImplementation((_key,_position,_turn,callback)=>{update=callback;return vi.fn();});
 });
 afterEach(()=>{cleanup();vi.clearAllMocks();vi.unstubAllGlobals();sessionStorage.clear();});
+it('embedded record picks directly without a duplicate preview and moves controls to the selected toolbar',()=>{
+ const target=document.createElement('div');document.body.append(target);const onPick=vi.fn();
+ const view=render(<WorkspaceContext.Provider value={{layout:'auto',selected:true,controlsTarget:target}}><RecordAnalysisPanel embedded game={game} owner="embedded" active ply={2} onPrepare={async()=>true} onPick={onPick}/></WorkspaceContext.Provider>);
+ expect(screen.queryByRole('grid')).toBeNull();expect(target.querySelector('button')).toHaveTextContent('解析');expect(localAnalysis.request).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button',{name:/^1\./}));expect(onPick).toHaveBeenCalledWith(1,game);
+ view.rerender(<WorkspaceContext.Provider value={{layout:'auto',selected:false,controlsTarget:target}}><RecordAnalysisPanel embedded game={game} owner="embedded" active onPrepare={async()=>true}/></WorkspaceContext.Provider>);
+ expect(target).toBeEmptyDOMElement();view.unmount();target.remove();
+});
+it('embedded analysis stops when another panel becomes selected',async()=>{
+ const target=document.createElement('div');document.body.append(target);
+ const renderPanel=(selected:boolean)=><WorkspaceContext.Provider value={{layout:'auto',selected,controlsTarget:target}}><RecordAnalysisPanel embedded game={game} owner="selected" active onPrepare={async()=>true}/></WorkspaceContext.Provider>;
+ const view=render(renderPanel(true));await act(async()=>{fireEvent.click(target.querySelector('button')!);});
+ expect(localAnalysis.request).toHaveBeenCalled();view.rerender(renderPanel(false));expect(screen.getByRole('status',{name:'全棋譜解析の状態'})).toHaveTextContent('停止中');
+ view.unmount();target.remove();
+});
 it('opens as a score sheet without starting analysis and navigates the selected move',()=>{
  const onPick=vi.fn();render(<RecordAnalysisPanel game={game} owner="idle" active ply={2} onPrepare={async()=>true} onPick={onPick}/>);
  expect(localAnalysis.request).not.toHaveBeenCalled();

@@ -19,6 +19,7 @@ function Harness({initial,onReturn=async()=>{}}:{initial:StudySession;onReturn?:
   const [settingsRequest,setSettingsRequest]=useState(0);
   return <><button onClick={()=>setSettingsRequest(n=>n+1)}>設定を開く</button><StudyView settingsRequest={settingsRequest} session={s} onChange={setS} onReturn={onReturn} sound={false} onSound={()=>{}} /></>;
 }
+const savedBranches = () => Object.keys(JSON.parse(sessionStorage.getItem('fgmv:study:v1')!).nodes).length-1;
 const square = (sq:string) => document.querySelector<HTMLButtonElement>(`[data-square="${sq}"]`)!;
 afterEach(()=>{cleanup();vi.restoreAllMocks();vi.useRealTimers();sessionStorage.clear();});
 describe('study input transactions',()=>{
@@ -48,7 +49,7 @@ describe('study input transactions',()=>{
     expect(square('54')).toHaveTextContent('歩'); expect(square('53')).toBeEmptyDOMElement();
     fireEvent.keyDown(window,{key:'Escape'}); expect(screen.queryByRole('dialog')).toBeNull(); expect(square('54')).toHaveTextContent('歩');
     fireEvent.click(square('54'));fireEvent.click(square('53'));fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'成る'}));
-    expect(square('53')).toHaveTextContent('と'); expect(square('54')).toBeEmptyDOMElement(); expect(document.querySelectorAll('.study-history li')).toHaveLength(1);
+    expect(square('53')).toHaveTextContent('と'); expect(square('54')).toBeEmptyDOMElement(); expect(savedBranches()).toBe(1);
   });
   it('hand drops select legal squares, retain count, and undo restores capture-free state',()=>{
     const board:BoardState={squares:{'99':{side:'+',code:'OU'},'11':{side:'-',code:'OU'}},hands:{'+':{FU:2},'-':{}},turn:'+',ply:0};
@@ -68,7 +69,7 @@ describe('study input transactions',()=>{
     fireEvent.click(square('77'));fireEvent.click(square('76'));
     const confirm=vi.spyOn(window,'confirm').mockReturnValue(false);
     fireEvent.click(screen.getByRole('button',{name:'設定を開く'}));
-    fireEvent.click(screen.getByRole('button',{name:'変化を全消去'}));expect(document.querySelectorAll('.study-history li')).toHaveLength(1);
-    confirm.mockReturnValue(true);fireEvent.click(screen.getByRole('button',{name:'設定を開く'}));fireEvent.click(screen.getByRole('button',{name:'変化を全消去'}));expect(document.querySelectorAll('.study-history li')).toHaveLength(0);expect(square('77')).toHaveTextContent('歩');
+    fireEvent.click(screen.getByRole('button',{name:'変化を全消去'}));expect(savedBranches()).toBe(1);
+    confirm.mockReturnValue(true);fireEvent.click(screen.getByRole('button',{name:'設定を開く'}));fireEvent.click(screen.getByRole('button',{name:'変化を全消去'}));expect(savedBranches()).toBe(0);expect(square('77')).toHaveTextContent('歩');
   });
 });

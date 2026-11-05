@@ -6,9 +6,7 @@ export async function tools(panel: Locator) {
   if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
 }
 export async function count(page: Page, number: 1|2|4) {
-  const menu=page.getByRole('button',{name:'メニュー',exact:true});
-  if (await menu.isVisible()) await menu.click();
-  await page.getByRole('button',{name:number+'局',exact:true}).click();
+  await page.getByLabel('表示局数',{exact:true}).selectOption(String(number));
 }
 export async function disabledAnalysis(page: Page) {
   await page.addInitScript(() => { if (!localStorage.getItem('unified-test-init')) { localStorage.setItem('fgmv:analysis:v1',JSON.stringify({disabled:true})); localStorage.setItem('unified-test-init','1'); } });
@@ -48,7 +46,7 @@ export async function startStudy(page: Page, panel=page.locator('.unified-panel'
   const promotion=page.getByRole('dialog',{name:'成りの選択'});
   if(await promotion.isVisible())await promotion.getByRole('button',{name:'成らない',exact:true}).click();
   const study=page.locator('.unified-panel.is-studying');await expect(study).toBeVisible();
-  await study.getByRole('button',{name:'起点へ',exact:true}).click();return study;
+  const first=study.locator('.integrated-controls').getByRole('button',{name:'最初',exact:true});if(await first.isEnabled())await first.click();return study;
 }
 export async function settings(panel: Locator) {
   const page=panel.page();
