@@ -6,6 +6,7 @@ import { hasAnalysisSetup, removeAnalysisSetup, retryAnalysisPreparation } from 
 import { localAnalysis, type AnalysisState, type AnalysisOptions } from '../engine/localAnalysis';
 import { validatedPv } from '../domain/studyRules';
 import { useWorkspace } from './WorkspaceContext';
+import { DetailPanel } from './DetailPanel';
 
 interface Props { board: BoardState; position: string; enabled: boolean; onEnabledChange: (enabled: boolean) => void; onPrepare: (signal?: AbortSignal) => Promise<boolean>; study?: boolean; milliseconds?: AnalysisOptions['milliseconds']; requestId?: number; stopped?: boolean; suspended?: boolean; detailsTarget?: HTMLElement | null; onDetails?: () => void }
 
@@ -18,6 +19,7 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
   const [error, setError] = useState('');
   const [cancelledError,setCancelledError] = useState(false);
   const [retrySequence,setRetrySequence] = useState(0);
+  const [candidatesOpen,setCandidatesOpen] = useState(false);
   const prepareRef = useRef(onPrepare);
   useLayoutEffect(() => { prepareRef.current = onPrepare; }, [onPrepare]);
   const resultKey = `${position}|${milliseconds}|${requestId}|${retrySequence}`;
@@ -66,19 +68,21 @@ export function LocalEvaluation({ board, position, enabled, onEnabledChange, onP
       </div></details>;
   if(workspace){
     const primary=candidates.find(candidate=>candidate.rank===1);
-    return <section className={`local-evaluation integrated-evaluation ${!enabled?'is-off':''}`} aria-label="AI局面解説" style={{'--black-share':`${advantageScale(score)}%`} as CSSProperties}>
-      <div className="integrated-evaluation-head"><div className="integrated-score"><span>{leader}</span><output className="evaluation-number" data-kind={score?.kind} aria-label="先手基準の評価値">{score?<>{scoreLabel({...score,bound:undefined})}{score.bound&&<small>{score.bound==='lowerbound'?'以上':'以下'}</small>}</>:'—'}</output><small className="evaluation-status">{!enabled?'解析OFF':stopped?'停止中':error?'解析停止':preparing?'準備中':label||'解析待ち'}</small></div>
-      <div className="integrated-pv"><small>第一候補・読み筋 · 先手基準{score?` · 深さ${score.depth}`:''}</small><p>{primary?.labels.length?<><strong>{first}</strong>{primary.labels.length>1?' → '+primary.labels.slice(1).join(' → '):''}</>:'読み筋はまだ取得できていません。'}</p></div></div>
-      <div className="advantage-meter" role="img" aria-label="先手基準の形勢ゲージ。勝率ではありません。"><span/></div>
-      <details className="integrated-candidates"><summary>他の候補・解析設定</summary>
-        <ol>{candidates.filter(candidate=>candidate.rank!==1&&candidate.labels.length).map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{candidate.labels.join(' → ')}</p></li>)}</ol>
+    const integratedDetails=<div className="integrated-candidates">
+        <ol>{candidates.filter(candidate=>candidate.labels.length).map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{candidate.labels.join(' → ')}</p></li>)}</ol>
         {candidates.some(candidate=>candidate.truncated)&&<p>読み筋の一部を表示できません。</p>}
         {(error||state?.message)&&<p role="alert">{error||state?.message}</p>}
         <button disabled={removing} aria-pressed={enabled} onClick={toggle}>端末で解析 {enabled?'ON':'OFF'}</button><a href={`${import.meta.env.BASE_URL}engine/NOTICE.txt`} target="_blank" rel="noreferrer">ライセンス</a>
         {!study&&hasAnalysisSetup()&&<button disabled={removing} onClick={()=>{setRemoving(true);onEnabledChange(false);void removeAnalysisSetup().catch(error=>{setError(String(error));setRemoving(false);});}}>解析用設定を解除して再読み込み</button>}
         <p>つようら王11micro · ゲージは勝率ではありません。端末のCPU・電池を使用します。</p>
-      </details>
-      {enabled&&!stopped&&(error||state?.message)&&<span className="analysis-error" role="alert">解析を開始できませんでした。<button onClick={retry}>解析を再試行</button></span>}
+
+      </div>;
+    return <section className={`local-evaluation integrated-evaluation ${!enabled?'is-off':''}`} aria-label="AI局面解説" style={{'--black-share':`${advantageScale(score)}%`} as CSSProperties}>
+      <div className="integrated-evaluation-head"><div className="integrated-score"><span>{leader}</span><output className="evaluation-number" data-kind={score?.kind} aria-label="先手基準の評価値">{score?<>{scoreLabel({...score,bound:undefined})}{score.bound&&<small>{score.bound==='lowerbound'?'以上':'以下'}</small>}</>:'—'}</output><small className="evaluation-status">{!enabled?'解析OFF':stopped?'停止中':error?'解析停止':preparing?'準備中':label||'解析待ち'}</small>{enabled&&!stopped&&(error||state?.message)&&<button className="integrated-retry" aria-label="解析を再試行" onClick={retry}>再試行</button>}</div>
+      <button className="integrated-pv" aria-label="読み筋と他の候補を開く" aria-haspopup="dialog" onClick={()=>{if(onDetails)onDetails();else setCandidatesOpen(true);}}><small>第一候補・読み筋 · 先手基準{score?` · 深さ${score.depth}`:''} ›</small><p>{primary?.labels.length?<><strong>{first}</strong>{primary.labels.length>1?' → '+primary.labels.slice(1).join(' → '):''}</>:'読み筋はまだ取得できていません。'}</p></button></div>
+      <div className="advantage-meter" role="img" aria-label="先手基準の形勢ゲージ。勝率ではありません。"><span/></div>
+      {detailsTarget?createPortal(integratedDetails,detailsTarget):<DetailPanel open={candidatesOpen} onClose={()=>setCandidatesOpen(false)} tab="analysis">{integratedDetails}</DetailPanel>}
+
     </section>;
   }
   return <section className={`local-evaluation ${!enabled ? 'is-off' : ''}`} aria-label="AI局面解説" style={{ '--black-share': `${advantageScale(score)}%` } as CSSProperties}>

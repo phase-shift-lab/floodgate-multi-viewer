@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { addRecent, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings, shareUrl } from './preferences';
 
 describe('preferences', () => {
+  it('3局を保存・共有し、非対応の局数は既定値へ戻す',()=>{
+    saveSettings({...loadSettings(),boardCount:3});expect(loadSettings().boardCount).toBe(3);
+    expect(readShareState(new URL(shareUrl({boards:3})).search).boards).toBe(3);
+    expect(readShareState('?boards=5').boards).toBeUndefined();
+    localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:5}));expect(loadSettings().boardCount).toBe(2);
+  });
   beforeEach(() => localStorage.clear());
 
   it('配列設定を配列のまま復元する', () => {

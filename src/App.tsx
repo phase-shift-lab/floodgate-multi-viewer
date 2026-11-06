@@ -3,7 +3,7 @@ import { WorkspaceContext, loadWorkspaceLayout, type WorkspaceLayout } from './c
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { analysisRecovery, preparationRecovery, prepareAnalysis, type PanelSnapshot } from './engine/isolation';
 import type { ReturnToSource } from './components/StudyView';
-import { createStudy, persistStudy, restoreStudy, savedStudyExists, type StudySession, type WatchSnapshot } from './domain/studySession';
+import { createStudy, navigateStudy, persistStudy, restoreStudy, savedStudyExists, type StudySession, type WatchSnapshot } from './domain/studySession';
 import { localAnalysis } from './engine/localAnalysis';
 import { loadPieceSound, playPieceSound, savePieceSound } from './data/pieceSound';
 import { loadAnalysisEnabled } from './data/analysisPreferences';
@@ -13,7 +13,7 @@ import { GamePanel } from './components/GamePanel';
 import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
 import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
 import { compareGames, replaceFinishedSlots, selectFeaturedGames } from './domain/selection';
-import type { GameSummary, Move, ParsedGame, ViewerSettings } from './domain/types';
+import { BOARD_COUNTS, type BoardCount, type GameSummary, type Move, type ParsedGame, type ViewerSettings } from './domain/types';
 
 interface Slot { id: string; pinned: boolean }
 
@@ -140,7 +140,7 @@ export default function App() {
     root.dataset.theme = settings.theme;
   }, [settings]);
 
-  const setBoardCount = (count: 1 | 2 | 4) => {
+  const setBoardCount = (count: BoardCount) => {
     setMenuOpen(false);
     setSettings((value) => ({ ...value, boardCount: count }));
     setExpanded(undefined);
@@ -279,16 +279,17 @@ export default function App() {
     } catch (error) { setStudyMessage((error as Error).message); return false; }
     finally { validation.current=undefined; setValidating(false); }
   };
-  const resumeStudy = async (automatic = false, preferredIndex?: number) => {
+  const resumeStudy = async (automatic = false, preferredIndex?: number, nodeId?:string) => {
     if (validation.current) return;
     const controller = new AbortController(); validation.current=controller;
     setValidating(true); setStudyMessage('');
     try {
-      const saved = await restoreStudy(controller.signal);
+      let saved = await restoreStudy(controller.signal);
       if (!saved) throw new Error('保存された検討はありません');
       if (automatic && (saved.id !== preparationRecovery?.studySessionId || !globalThis.crossOriginIsolated)) throw new Error('解析準備後の検討を自動復元できませんでした。前の検討を再開から確認してください');
       if (controller.signal.aborted) return;
       if (!automatic) saved.watch = watchSnapshot();
+      if(nodeId) saved=navigateStudy(saved,nodeId);
       persistStudy(saved); studyingRef.current=true; setStudying(true); localAnalysis.stopAll(); setStudy(saved);
       const index=preferredIndex !== undefined && slots[preferredIndex]?.id === saved.game.id ? preferredIndex : slots.findIndex(slot => slot.id === saved.game.id);
       if (index < 0) {
@@ -352,30 +353,29 @@ export default function App() {
     <div data-layout={workspaceLayout} className={`app-shell integrated-app${liveViewClass}${studying ? ' unified-studying' : ''}`}>
       <div className="watch-shell">
       <a className="skip-link" href="#main">本文へ移動</a>
-      <header className="site-header">
-        <div className="title-block"><img className="dawn-logo" src={`${import.meta.env.BASE_URL}dawn.svg`} alt="夜明け"/><div><h1>Floodgate Multi Viewer</h1>{view === 'live' ? <div className="header-summary legend" aria-label="観戦情報"><strong><i className="live-dot" />注目対局</strong><span className={statsAvailable ? undefined : 'stats-status'}>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div> : <p>公開棋譜を静かに、見やすく。</p>}</div></div>
-        <button className="app-settings-toggle" aria-label="設定を開く" disabled={view !== 'live' || validating || autoRestoring || !visibleSlots.length} title="選択中の盤の設定" onClick={event => { event.currentTarget.focus({preventScroll:true}); setMenuOpen(false); const index=expanded ?? Math.min(activePanel.current,visibleSlots.length-1); setSettingsRequest(value => ({index,serial:(value?.serial ?? 0)+1})); }}>⚙</button>
-        <button className="mobile-menu-toggle" aria-expanded={menuOpen} aria-controls="header-menu" onClick={() => setMenuOpen((open) => !open)}>{menuOpen ? '閉じる' : 'メニュー'}</button>
+      <header className="site-header" onKeyDown={event=>{if(event.key==='Escape')setMenuOpen(false);}}>
+        <div className="title-block"><img className="dawn-logo" src={`${import.meta.env.BASE_URL}dawn.svg`} alt="夜明け"/><h1>Floodgate Multi Viewer</h1></div>
+        <nav className="header-main-nav" aria-label="メインメニュー"><button disabled={studying || validating} className={view === 'live' ? 'active' : ''} onClick={() => changeView('live')}>ライブ</button><button disabled={studying || validating} className={view === 'archive' ? 'active' : ''} onClick={() => changeView('archive')}>過去対局</button></nav>
+        {view==='live'&&<div className="workspace-toolbar" aria-label="観戦・解析操作">
+          <div className="desktop-layout"><label><span>配置</span><select aria-label="配置" value={workspaceLayout} onChange={e=>{const layout=e.target.value as WorkspaceLayout;setWorkspaceLayout(layout);try{localStorage.setItem('fgmv:layout:v1',layout);}catch{/* Optional preference. */}}}><option value="auto">自動</option><option value="stack">縦型</option><option value="side">横型</option></select></label></div>
+          <label><span>局数</span><select aria-label="表示局数" value={settings.boardCount} disabled={studying||validating} onChange={e=>setBoardCount(Number(e.target.value) as BoardCount)}>{BOARD_COUNTS.map(n=><option key={n} value={n}>{n}局</option>)}</select></label>
+          <div className="workspace-analysis-controls" ref={setRecordControlsTarget}/>
+        </div>}
+        <button className="mobile-menu-toggle" aria-label="表示と設定" aria-expanded={menuOpen} aria-controls="header-menu" onClick={() => setMenuOpen(open => !open)}>⚙</button>
         <div id="header-menu" className={`header-menu${menuOpen ? ' is-open' : ''}`}>
-          <nav aria-label="メインメニュー">
-            <button disabled={studying || validating} className={view === 'live' ? 'active' : ''} onClick={() => changeView('live')}>ライブ</button>
-            <button disabled={studying || validating} className={view === 'archive' ? 'active' : ''} onClick={() => changeView('archive')}>過去対局</button>
-          </nav>
+          <nav className="mobile-navigation" aria-label="画面切替"><button disabled={studying || validating} className={view === 'live' ? 'active' : ''} onClick={() => changeView('live')}>ライブ</button><button disabled={studying || validating} className={view === 'archive' ? 'active' : ''} onClick={() => changeView('archive')}>過去対局</button></nav>
+          <div className="mobile-layout"><label><span>配置</span><select aria-label="スマホの配置" value={workspaceLayout} onChange={e=>{const layout=e.target.value as WorkspaceLayout;setWorkspaceLayout(layout);try{localStorage.setItem('fgmv:layout:v1',layout);}catch{/* Optional preference. */}}}><option value="auto">自動</option><option value="stack">縦型</option><option value="side">横型</option></select></label></div>
+          <button className="app-settings-toggle" aria-label="設定を開く" disabled={view !== 'live' || validating || autoRestoring || !visibleSlots.length} onClick={() => { document.querySelector<HTMLButtonElement>('.mobile-menu-toggle')?.focus({preventScroll:true}); setMenuOpen(false); const index=expanded ?? Math.min(activePanel.current,visibleSlots.length-1); setSettingsRequest(value => ({index,serial:(value?.serial ?? 0)+1})); }}>選択中の盤の設定</button>
           <div className="header-actions">
             <button className="sound-toggle" aria-pressed={sound} onClick={toggleSound}>駒音 {sound ? 'ON' : 'OFF'}</button>
-            <label className="theme-select">配色<select aria-label="配色" value={settings.theme} onChange={(event) => setSettings((value) => ({ ...value, theme: event.target.value as ViewerSettings['theme'] }))}><option value="system">端末設定</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
+            <label className="theme-select">配色<select aria-label="配色" value={settings.theme} onChange={event => setSettings(value => ({ ...value, theme: event.target.value as ViewerSettings['theme'] }))}><option value="system">端末設定</option><option value="light">ライト</option><option value="dark">ダーク</option></select></label>
             <a className="header-source-link" aria-label="Floodgate 公開情報" href="https://wdoor.c.u-tokyo.ac.jp/shogi/" target="_blank" rel="noreferrer">出典</a>
-            <label className="auto-switch"><input type="checkbox" checked={settings.autoSwitchFinished} onChange={(event) => setSettings((value) => ({ ...value, autoSwitchFinished: event.target.checked }))} />終局後に注目局へ切替</label>
+            <label className="auto-switch"><input type="checkbox" checked={settings.autoSwitchFinished} onChange={event => setSettings(value => ({ ...value, autoSwitchFinished: event.target.checked }))} />終局後に注目局へ切替</label>
           </div>
+          <div className="header-summary legend" aria-label="観戦情報"><strong><i className="live-dot" />注目対局</strong><span>{statsLabel}</span><span>お気に入り {favorites.length}</span><span>最近見た {recent.length}</span></div>
         </div>
       </header>
 
-      {view==='live'&&<div className="workspace-toolbar" aria-label="観戦・解析操作">
-        <label><span>配置</span><select aria-label="配置" value={workspaceLayout} onChange={e=>{const layout=e.target.value as WorkspaceLayout;setWorkspaceLayout(layout);try{localStorage.setItem('fgmv:layout:v1',layout);}catch{/* Optional preference. */}}}><option value="auto">自動</option><option value="stack">縦型</option><option value="side">横型</option></select></label>
-        <label><span>局数</span><select aria-label="表示局数" value={settings.boardCount} disabled={studying||validating} onChange={e=>setBoardCount(Number(e.target.value) as 1|2|4)}>{[1,2,4].map(n=><option key={n} value={n}>{n}局</option>)}</select></label>
-        <div className="workspace-analysis-controls" ref={setRecordControlsTarget}/>
-        <span className="workspace-target" aria-live="polite">対象：{studying?study?.game.black:games.find(g=>g.id===visibleSlots[expanded!==undefined?0:Math.min(selectedPanel,visibleSlots.length-1)]?.id)?.black??'取得中'}</span>
-      </div>}
       <main id="main" className={liveMainClass}>
         {view==='live' && status!=='loading' && !visibleSlots.length && <div className="notice" role="status">表示できる注目対局をまだ確認できません。過去対局から手動で選ぶか、次の更新をお待ちください。</div>}
         {validating && <div className="notice" role="status">棋譜・保存データを検証中…<button onClick={() => validation.current?.abort()}>取消</button></div>}
@@ -408,7 +408,7 @@ export default function App() {
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
               const restoredPanel = recovery?.slots[realIndex]?.summary.id === summary.id ? recovery.slots[realIndex] : undefined;
-              return <WorkspaceContext.Provider key={panelRevision+':'+realIndex+':'+slot.id} value={{layout:workspaceLayout,selected:studying||realIndex===(expanded??Math.min(selectedPanel,visibleSlots.length-1)),controlsTarget:recordControlsTarget}}><GamePanel onGameFinished={recordFinished} settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} onResumeStudy={hasSavedStudy ? () => void resumeStudy(false,realIndex) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
+              return <WorkspaceContext.Provider key={panelRevision+':'+realIndex+':'+slot.id} value={{layout:workspaceLayout,selected:studying||realIndex===(expanded??Math.min(selectedPanel,visibleSlots.length-1)),controlsTarget:recordControlsTarget}}><GamePanel onGameFinished={recordFinished} settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} savedStudy={study?.game.id===summary.id?study:undefined} onResumeStudy={hasSavedStudy ? nodeId => void resumeStudy(false,realIndex,nodeId) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
                 key={`${panelRevision}:${restoredWatch?.at ?? 0}:${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} /></WorkspaceContext.Provider>;
             })}
           </div>}

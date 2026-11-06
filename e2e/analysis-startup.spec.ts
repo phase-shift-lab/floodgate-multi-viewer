@@ -64,10 +64,10 @@ test('study moves made during preparation survive reload and resume analysis',as
  await page.goto(base);const panel=page.locator('.unified-panel');
  await tools(panel);await panel.locator('.board-tools-content').getByRole('button',{name:'最初',exact:true}).click();
  const study=await startStudy(page,panel);
- await study.locator('.integrated-candidates summary').click();
+ await study.getByRole('button',{name:'読み筋と他の候補を開く'}).click();
  await study.getByRole('button',{name:'端末で解析 OFF',exact:true}).click();
  await page.waitForFunction(()=>document.documentElement.dataset.preparationStarted==='true');
- await study.locator('.integrated-candidates summary').click();
+ await study.getByRole('dialog',{name:'読み筋',exact:true}).getByRole('button',{name:'閉じる'}).click();
  await study.locator('[data-square="77"]').click();await study.locator('[data-square="76"]').click();
  await expect(study.locator('.study-badge')).toHaveText('検討中');
  await expect(study.getByLabel('現在手数')).toHaveText('1 / 1手');

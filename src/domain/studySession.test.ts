@@ -10,6 +10,11 @@ const create = () => createStudy(game,1,watch(game),false,false);
 const move = (s: StudySession,from:string,to:string) => { const b=studyPosition(s).board; return makeMove(b,from,to,b.squares[from].code); };
 beforeEach(()=>sessionStorage.clear());
 describe('study branches and bounded storage',()=>{
+  it('3局の観戦状態を検討保存から復元する',async()=>{
+    const snapshot=watch(game);snapshot.settings.boardCount=3;
+    const s=await createStudy(game,1,snapshot,false,false);persistStudy(s);
+    expect((await restoreStudy())?.watch.settings.boardCount).toBe(3);
+  });
   it('saves the first interactive move atomically without changing the source game',async()=>{
     const s=await create(),first=move(s,'83','84'),original=JSON.stringify(game);
     const next=await createStudy(game,1,watch(game),false,false,undefined,{move:first,isCurrent:()=>true});

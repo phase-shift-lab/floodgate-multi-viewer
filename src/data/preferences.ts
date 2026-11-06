@@ -1,4 +1,4 @@
-import type { ViewerSettings } from '../domain/types';
+import { BOARD_COUNTS, type BoardCount, type ViewerSettings } from '../domain/types';
 
 const SETTINGS_KEY = 'fgmv:settings:v1';
 const SETTINGS_MIGRATION_KEY = 'fgmv:settings:migrated:auto-switch-finished-default-on';
@@ -41,7 +41,7 @@ export function loadSettings(): ViewerSettings {
   return {
     ...DEFAULT_SETTINGS,
     ...value,
-    boardCount: [1, 2, 4].includes(value.boardCount) ? value.boardCount : DEFAULT_SETTINGS.boardCount,
+    boardCount: BOARD_COUNTS.includes(value.boardCount) ? value.boardCount : DEFAULT_SETTINGS.boardCount,
     playbackSeconds: Math.min(60, Math.max(0.1, Number(value.playbackSeconds) || 1)),
     autoSwitchFinished,
   };
@@ -70,7 +70,7 @@ export function getStatsSessionId(): string {
   return generated;
 }
 
-export interface ShareState { game?: string; ply?: number; view?: 'live' | 'archive'; boards?: 1 | 2 | 4; orientation?: 'black' | 'white' }
+export interface ShareState { game?: string; ply?: number; view?: 'live' | 'archive'; boards?: BoardCount; orientation?: 'black' | 'white' }
 
 export function readShareState(search = location.search): ShareState {
   const params = new URLSearchParams(search);
@@ -79,7 +79,7 @@ export function readShareState(search = location.search): ShareState {
     game: params.get('game') ?? undefined,
     ply: params.has('ply') ? Math.max(0, Number(params.get('ply'))) : undefined,
     view: params.get('view') === 'archive' ? 'archive' : params.get('view') === 'live' ? 'live' : undefined,
-    boards: [1, 2, 4].includes(boards) ? boards as 1 | 2 | 4 : undefined,
+    boards: BOARD_COUNTS.includes(boards as BoardCount) ? boards as BoardCount : undefined,
     orientation: params.get('orientation') === 'white' ? 'white' : params.get('orientation') === 'black' ? 'black' : undefined,
   };
 }

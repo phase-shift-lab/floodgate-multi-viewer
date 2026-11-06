@@ -1,7 +1,7 @@
 import { applyMove } from './csa';
 import { toEnginePosition } from './localEvaluation';
 import { moveError, positionKey, terminalReason, validatedPrefix } from './studyRules';
-import type { BoardState, Move, ParsedGame, ViewerSettings } from './types';
+import { BOARD_COUNTS, type BoardState, type Move, type ParsedGame, type ViewerSettings } from './types';
 import type { AnalysisRecovery } from '../engine/isolation';
 
 export type StudySeconds = 1 | 3 | 5 | 10;
@@ -78,7 +78,15 @@ export function persistStudy(session: StudySession): StudySession {
   catch { throw new Error('検討を保存できません。ブラウザーの保存設定を確認してください。変更は確定していません'); }
   return next;
 }
-export function savedStudyExists(): boolean { try { return Boolean(sessionStorage.getItem(STUDY_KEY)); } catch { return false; } }
+export function savedStudyExists(gameId?:string): boolean {
+  try {
+    const raw=sessionStorage.getItem(STUDY_KEY);if(!raw)return false;
+    if(!gameId)return true;
+    if(raw.length>MAX_BYTES)return false;
+    const hint=JSON.parse(raw) as Partial<StudySession>;
+    return hint.game?.id===gameId&&Number.isFinite(hint.at)&&Date.now()-hint.at!>=0&&Date.now()-hint.at!<TTL;
+  }catch{return false;}
+}
 export async function restoreStudy(signal?: AbortSignal): Promise<StudySession | undefined> {
   const raw = sessionStorage.getItem(STUDY_KEY);
   if (!raw) return;
@@ -86,7 +94,7 @@ export async function restoreStudy(signal?: AbortSignal): Promise<StudySession |
   const s = JSON.parse(raw) as StudySession;
   if (!s || s.schema !== 1 || typeof s.id !== 'string' || !Number.isFinite(s.at) || Date.now()-s.at < 0 || Date.now()-s.at > TTL) throw new Error('検討データが不正または2時間の保存期限を過ぎています');
   if (!STUDY_TIMES.includes(s.seconds) || typeof s.enabled !== 'boolean' || typeof s.flipped !== 'boolean' || typeof s.stopped !== 'boolean' || !s.nodes || !s.nodes.root || !s.nodes[s.current]) throw new Error('検討設定が不正です');
-  if (!s.watch || !['live','archive'].includes(s.watch.view) || !s.watch.settings || ![1,2,4].includes(s.watch.settings.boardCount) || !Array.isArray(s.watch.slots) || !s.watch.slots.length || s.watch.slots.length > 4) throw new Error('観戦の保存データが不正です');
+  if (!s.watch || !['live','archive'].includes(s.watch.view) || !s.watch.settings || !BOARD_COUNTS.includes(s.watch.settings.boardCount) || !Array.isArray(s.watch.slots) || !s.watch.slots.length || s.watch.slots.length > 4) throw new Error('観戦の保存データが不正です');
   const settings = s.watch.settings;
   if (!['black','white'].includes(settings.orientation) || !['dark','light','system'].includes(settings.theme) || typeof settings.autoSwitchFinished !== 'boolean' || !Number.isFinite(settings.playbackSeconds) || settings.playbackSeconds < .1 || settings.playbackSeconds > 60 || (s.watch.expanded !== undefined && (!Number.isInteger(s.watch.expanded) || s.watch.expanded < 0 || s.watch.expanded >= s.watch.slots.length))) throw new Error('観戦設定が不正です');
   for (const slot of s.watch.slots) {

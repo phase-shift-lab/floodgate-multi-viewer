@@ -36,7 +36,7 @@ describe('study input transactions',()=>{
     expect(screen.getByText('本譜に新着1手')).toBeInTheDocument();
     expect(square('76')).toHaveTextContent('歩');expect(square('77')).toBeEmptyDOMElement();
     fireEvent.click(screen.getByRole('button',{name:'棋譜を開く'}));
-    fireEvent.click(screen.getByRole('button',{name:'本譜'}));
+    fireEvent.change(screen.getByLabelText('解析・出力の手順'),{target:{value:'source'}});
     fireEvent.click(screen.getByRole('button',{name:/^3\./}));fireEvent.click(screen.getByRole('button',{name:'盤面に表示'}));
     expect(onReturn).toHaveBeenCalledWith({ply:3,game:next});
     expect(JSON.parse(sessionStorage.getItem('fgmv:study:v1')!).nodes).toHaveProperty('root');

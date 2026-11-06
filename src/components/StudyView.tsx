@@ -29,7 +29,7 @@ export function StudyView({ session, onChange, onReturn, sound, onSound, players
   const [dialogOpen,setDialogOpen] = useState(()=>!workspace&&(hasRecordRecovery(recordOwner)||hasRecordRecovery(recordOwner+':source')));
   const [detailTab,setDetailTab] = useState<DetailTab>('record');
   const [recordTab,setRecordTab] = useState<'source'|'branches'>(()=>hasRecordRecovery(recordOwner+':source')?'source':'branches');
-  const recordSelector=<div className="record-kind" role="group" aria-label="棋譜の種類"><button aria-pressed={recordTab === 'source'} onClick={() => setRecordTab('source')}>本譜</button><button aria-pressed={recordTab === 'branches'} onClick={() => setRecordTab('branches')}>変化</button></div>;
+  const recordSelector=<label className="record-kind">解析・出力の手順<select aria-label="解析・出力の手順" value={recordTab} onChange={event=>setRecordTab(event.target.value as 'source'|'branches')}><option value="source">元対局の棋譜</option><option value="branches">現在の変化</option></select></label>;
   const [headerTarget,setHeaderTarget] = useState<HTMLDivElement | null>(null);
   const [detailsTarget,setDetailsTarget] = useState<HTMLDivElement | null>(null);
   const baselineGame = session.watch.slots.find(slot => slot.summary.id === session.game.id)?.game ?? session.game;
@@ -110,7 +110,7 @@ export function StudyView({ session, onChange, onReturn, sound, onSound, players
   while (next && !timeline.includes(next) && timeline.length < 513) { timeline.push(next); const child=session.nodes[next]; next=child.preferred ?? child.children[0]; }
   const recordGame=variationRecord(session.game,[...session.game.moveList.slice(0,session.origin),...path.map(item=>item.move!)]);
   const pickRecordPly=(ply:number,record:ParsedGame)=>{
-    if(ply<session.origin) {void returnToWatch({ply,game:sourceGame});return;}
+    if(ply<=session.origin) {void returnToWatch({ply,game:sourceGame});return;}
     let id='root';
     for(const move of record.moveList.slice(session.origin,ply)) {
       const child=session.nodes[id].children.find(key=>session.nodes[key].move?.raw===move.raw);
@@ -124,20 +124,27 @@ export function StudyView({ session, onChange, onReturn, sound, onSound, players
   const lastSettingsRequest=useRef(settingsRequest);
   useEffect(() => { if (settingsRequest && settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=settingsRequest; },[settingsRequest]);
   const newCount = Math.max(0,sourceGame.moveList.length-baselineGame.moveList.length);
-  const pickBranch = (id: string) => { if (commit(navigateStudy(session,id))) { cancelSelection(); setRequestId(0); setDialogOpen(false); } };
+  const pickBranch = (id: string) => { if (commit(navigateStudy(session,id))) { cancelSelection(); setRequestId(0); setRecordTab('branches'); setDialogOpen(false); } };
+  const moveExtras=(ply:number)=>{
+    if(ply<session.origin)return null;
+    const parent=ply===session.origin?session.nodes.root:path[ply-session.origin-1];
+    if(!parent)return null;
+    const following=recordTab==='branches'?path[ply-session.origin]?.id:undefined;
+    return <>{ply===session.origin&&<button className="record-branch branch-source" disabled={leaving||Boolean(promotion)} onClick={()=>void returnToWatch({ply:session.origin,game:sourceGame})}>↰ {session.origin}手目 · 分岐元へ戻る</button>}{parent.children.filter(id=>id!==following).map(id=><button className="record-branch" disabled={leaving||Boolean(promotion)} key={id} onClick={()=>pickBranch(id)}>↳ {formatMove(session.nodes[id].move!)} · 別の変化</button>)}</>;
+  };
   const share = () => {
     const url=shareUrl({game:session.game.id,ply:session.origin,view:session.game.live?'live':'archive',boards:1,orientation:session.flipped?'white':'black'});
     void navigator.clipboard.writeText(url).then(()=>setMessage('元対局のURLをコピーしました。変化は含みません。')).catch(()=>setMessage(url));
   };
   return <BoardSurface studying label="検討盤"
     caption={<strong className="study-badge">検討中</strong>}
-    captionActions={<><button aria-label="盤面反転" onClick={()=>{cancelSelection();commit({...session,flipped:!session.flipped});}}>反転</button><button className="context-share" onClick={share}>共有</button><button className="return-source" aria-label="本譜へ戻る" disabled={leaving||Boolean(promotion)} onClick={()=>void returnToWatch()}>本譜</button></>}
+    captionActions={<>{!workspace&&<><button aria-label="盤面反転" onClick={()=>{cancelSelection();commit({...session,flipped:!session.flipped});}}>反転</button><button className="context-share" onClick={share}>共有</button><button className="return-source" aria-label="本譜へ戻る" disabled={leaving||Boolean(promotion)} onClick={()=>void returnToWatch()}>本譜</button></>}{workspace&&<button className="context-share" onClick={share}>共有</button>}</>}
     evaluation={<LocalEvaluation board={board} position={position} enabled={session.enabled} onEnabledChange={enabled => commit({...session,enabled,stopped:false})} onPrepare={prepare} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} study milliseconds={session.seconds*1000 as 1000|3000|5000|10000} requestId={requestId} stopped={session.stopped || Boolean(terminal) || leaving} />}
     board={<ShogiBoard players={players ?? {'+':{name:session.game.black},'-':{name:session.game.white}}} state={board} flipped={session.flipped} lastMove={node.move ?? session.game.moveList.at(-1)} selected={selected} legalTargets={targets} locked={Boolean(promotion) || leaving || Boolean(terminal)} onSquare={selectSquare} onHand={(side,code) => { if (side === board.turn && !promotion) { setSelected(selected === 'hand:'+code ? undefined : 'hand:'+code); setMessage(''); } }} />}
     status={<><span>{terminal ?? (promotion ? '成る・成らないを選んでください' : selected ? '移動可能な升 '+targets.length+'か所' : '手番側の駒・持駒を選んでください')}</span>{selected && !promotion && <button onClick={cancelSelection}>選択取消</button>}{newCount > 0 && <strong className="study-new-moves">本譜に新着{newCount}手</strong>}{liveMessage && <small>{liveMessage}</small>}</>}
-    controls={<BoardControls variation onSource={()=>void returnToWatch()} onVariation={()=>{if(!workspace){openDetails('record');return;}setRecordTab('branches');requestAnimationFrame(()=>{document.querySelector('.is-studying .record-actions')?.setAttribute('open','');document.querySelector('.is-studying .study-history')?.setAttribute('open','');});}} onFlip={() => { cancelSelection(); commit({...session,flipped:!session.flipped}); }} current={node.move ? formatMove(node.move) : '検討の起点'} ply={path.length} max={timeline.length-1} onPrevious={() => { if (node.parent) navigate(node.parent); }} onNext={() => { const id=node.preferred ?? node.children[0]; if (id) navigate(id); }} onCurrent={() => openDetails('record')} onSeek={ply => navigate(timeline[ply])} action="起点へ" onAction={() => navigate('root')} previousDisabled={!node.parent} nextDisabled={!node.children.length} disabled={Boolean(promotion) || leaving} />}
+    controls={<BoardControls onFlip={() => { cancelSelection(); commit({...session,flipped:!session.flipped}); }} current={node.move ? formatMove(node.move) : '検討の起点'} ply={path.length} max={timeline.length-1} onPrevious={() => { if (node.parent) navigate(node.parent); }} onNext={() => { const id=node.preferred ?? node.children[0]; if (id) navigate(id); }} onCurrent={() => openDetails('record')} onSeek={ply => navigate(timeline[ply])} action="起点へ" onAction={() => navigate('root')} previousDisabled={!node.parent} nextDisabled={!node.children.length} disabled={Boolean(promotion) || leaving} />}
     footer={<><div className="connection">検討はこのタブに2時間保存 · 本譜{session.origin}手目から</div>{message && <div className="study-message" role="alert">{message}</div>}{promotion && <PromotionChoice moves={promotion} original={board.squares[promotion[0].from]?.code} onPick={add} onCancel={cancelSelection}/>} </>}
-    record={workspace&&<RecordAnalysisPanel embedded key={recordTab} owner={recordTab==='source'?recordOwner+':source':recordOwner} game={recordTab==='source'?sourceGame:recordGame} ply={recordTab==='source'?session.origin:session.origin+path.length} active={!leaving} onPrepare={prepare} onPick={recordTab==='source'?(ply,game)=>void returnToWatch({ply,game}):pickRecordPly} isVariation={recordTab==='branches'} recordSelector={recordSelector} recordFooter={<details className="study-history"><summary>他の変化を選ぶ</summary><button onClick={()=>pickBranch('root')}>起点</button>{Object.values(session.nodes).filter(item=>item.move).map(item=><button key={item.id} onClick={()=>pickBranch(item.id)}>{formatMove(item.move!)}</button>)}</details>}/>}
+    record={workspace&&<RecordAnalysisPanel moveExtras={moveExtras} embedded key={recordTab} owner={recordTab==='source'?recordOwner+':source':recordOwner} game={recordTab==='source'?sourceGame:recordGame} ply={recordTab==='source'?session.origin:session.origin+path.length} active={!leaving} onPrepare={prepare} onPick={recordTab==='source'?(ply,game)=>void returnToWatch({ply,game}):pickRecordPly} isVariation={recordTab==='branches'} recordSelector={recordSelector} recordFooter={<details className="study-history"><summary>他の変化を選ぶ</summary><button onClick={()=>pickBranch('root')}>起点</button>{Object.values(session.nodes).filter(item=>item.move).map(item=><button key={item.id} onClick={()=>pickBranch(item.id)}>{formatMove(item.move!)}</button>)}</details>}/>}
     modal={<DetailPanel open={dialogOpen} tab={detailTab} onHeaderTarget={setHeaderTarget} onClose={() => setDialogOpen(false)}>
       {!workspace&&<div className="record-pane" hidden={detailTab !== 'record'}>
         <div hidden={recordTab !== 'source'}><RecordAnalysisPanel headerTarget={headerTarget} owner={recordOwner+':source'} game={sourceGame} ply={session.origin} active={dialogOpen && detailTab === 'record' && recordTab === 'source' && !leaving} onPrepare={prepare} onPick={(ply,game)=>void returnToWatch({ply,game})} recordSelector={recordSelector}/></div>

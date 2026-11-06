@@ -5,7 +5,7 @@ export async function tools(panel: Locator) {
   const button=panel.getByRole('button',{name:'対局を選ぶ',exact:true});
   if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
 }
-export async function count(page: Page, number: 1|2|4) {
+export async function count(page: Page, number: 1|2|3|4) {
   await page.getByLabel('表示局数',{exact:true}).selectOption(String(number));
 }
 export async function disabledAnalysis(page: Page) {
@@ -51,5 +51,6 @@ export async function startStudy(page: Page, panel=page.locator('.unified-panel'
 export async function settings(panel: Locator) {
   const page=panel.page();
   await panel.locator('.player-side').first().click();
+  await page.getByRole('button',{name:'表示と設定',exact:true}).click();
   await page.getByRole('button',{name:'設定を開く',exact:true}).click();
 }

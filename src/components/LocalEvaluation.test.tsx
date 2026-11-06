@@ -13,6 +13,11 @@ const flush=async()=>{await act(async()=>{await Promise.resolve();});};
 function props(){return{board:createInitialBoard(),position:'position-a',enabled:true,onEnabledChange:vi.fn(),onPrepare:vi.fn<((signal?:AbortSignal)=>Promise<boolean>)>()};}
 
 describe('analysis preparation lifetime',()=>{
+ it('opens the owning panel detail flow so watching can hold its live position',()=>{
+  const p=props(),onDetails=vi.fn();
+  render(<WorkspaceContext.Provider value={{layout:'auto',selected:true,controlsTarget:null}}><LocalEvaluation {...p} enabled={false} onDetails={onDetails}/></WorkspaceContext.Provider>);
+  fireEvent.click(screen.getByRole('button',{name:'読み筋と他の候補を開く'}));expect(onDetails).toHaveBeenCalledOnce();
+ });
  it('integrates the first PV once and keeps the score bound separate from the number',()=>{
   vi.stubGlobal('crossOriginIsolated',true);const p=props();
   const view=render(<WorkspaceContext.Provider value={{layout:'auto',selected:true,controlsTarget:null}}><LocalEvaluation {...p}/></WorkspaceContext.Provider>);

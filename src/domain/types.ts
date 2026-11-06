@@ -54,8 +54,10 @@ export interface BoardState {
 
 export type ConnectionState = 'connecting' | 'online' | 'stale' | 'offline' | 'paused';
 
+export const BOARD_COUNTS = [1, 2, 3, 4] as const;
+export type BoardCount = typeof BOARD_COUNTS[number];
 export interface ViewerSettings {
-  boardCount: 1 | 2 | 4;
+  boardCount: BoardCount;
   playbackSeconds: number;
   orientation: 'black' | 'white';
   theme: 'light' | 'dark' | 'system';

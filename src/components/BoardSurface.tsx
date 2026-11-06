@@ -20,20 +20,18 @@ export function BoardSurface({ context, caption, captionActions, evaluation, boa
   </article>;
 }
 
-export function BoardControls({ current, ply, max, onPrevious, onNext, onCurrent, onSeek, action, onAction, onFlip, previousDisabled, nextDisabled, disabled = false, onSource, onVariation, variation=false }: {
+export function BoardControls({ current, ply, max, onPrevious, onNext, onCurrent, onSeek, action, onAction, onFlip, previousDisabled, nextDisabled, disabled = false }: {
   current: string; ply: number; max: number; onPrevious: () => void; onNext: () => void; onCurrent: () => void;
   onSeek: (ply: number) => void; action: string; onAction: () => void; previousDisabled?: boolean; nextDisabled?: boolean; disabled?: boolean;
   onFlip: () => void;
-  onSource?:()=>void;onVariation?:()=>void;variation?:boolean;
 }) {
   const workspace=useWorkspace();
   if(workspace)return <div className="board-controls integrated-controls" aria-label="棋譜再生操作">
-    <button aria-pressed={!variation} onClick={onSource??(()=>onSeek(max))} disabled={disabled}>本譜</button>
-    <button aria-pressed={variation} onClick={onVariation} disabled={disabled||!onVariation}>変化</button>
     <button aria-label="最初" disabled={disabled||previousDisabled} onClick={()=>onSeek(0)}>⏮</button>
     <button aria-label="1手戻る" disabled={disabled||previousDisabled} onClick={onPrevious}>←</button>
     <button aria-label="1手進む" disabled={disabled||nextDisabled} onClick={onNext}>→</button>
     <button aria-label="最後" disabled={disabled||nextDisabled} onClick={()=>onSeek(max)}>⏭</button>
+    <button aria-label="盤面を反転" disabled={disabled} onClick={onFlip}>反転</button>
     <small className="replay-status" title={current} aria-label="現在手数">{ply} / {max}手</small>
   </div>;
   return <div className="board-controls" aria-label="棋譜再生操作">
