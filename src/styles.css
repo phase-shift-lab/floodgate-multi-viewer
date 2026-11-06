@@ -1032,7 +1032,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
  .integrated-app[data-layout=side] .workspace-record { border-top:0; border-left:1px solid var(--line); }
  .integrated-app[data-layout=side] .boards.count-3 .workspace-body { grid-template-columns:minmax(0,1fr) clamp(160px,28%,180px); }
 }
-@media(min-width:1800px) { .integrated-app .boards.count-3 { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(min-width:1440px) { .integrated-app .boards.count-3 { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:1430px) { .integrated-app .boards.count-4 { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:1099px) { .integrated-app .boards:not(.count-4) { grid-template-columns:minmax(0,1fr); } }
 @media(min-width:768px) and (max-width:2100px) { .integrated-app[data-layout=side] .boards.count-4 .workspace-body { grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr) 110px; } }

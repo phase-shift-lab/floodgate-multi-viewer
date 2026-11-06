@@ -4,7 +4,7 @@ import {base,count,disabledAnalysis,settleBoard,startStudy} from './ui';
 test('compact layout fits phones and PC rows while retaining a readable side record',async({page})=>{
  test.setTimeout(90000);
  await disabledAnalysis(page);
- for(const [width,height] of [[1920,1080],[1800,900],[1799,900],[1440,900],[1280,720],[768,900],[320,568],[393,568],[393,852],[430,740]]){
+ for(const [width,height] of [[1920,1080],[1800,900],[1745,900],[1536,864],[1440,900],[1439,900],[1280,720],[768,900],[320,568],[393,568],[393,852],[430,740]]){
   await page.setViewportSize({width,height});await page.goto(base);
   for(const n of width>=768?[1,2,3,4] as const:[1] as const){
    await count(page,n);await expect(page.locator('.unified-panel')).toHaveCount(n);await settleBoard(page.locator('.unified-panel').first());
@@ -20,10 +20,10 @@ test('compact layout fits phones and PC rows while retaining a readable side rec
     for(const r of [g.board,...g.parts]){expect(r.left).toBeGreaterThanOrEqual(g.panel.left-1);expect(r.right).toBeLessThanOrEqual(g.panel.right+1);expect(r.top).toBeGreaterThanOrEqual(g.panel.top-1);expect(r.bottom).toBeLessThanOrEqual(g.panel.bottom+1);}
     if(n===1)for(const r of [g.board,...g.parts]){expect(r.top).toBeGreaterThanOrEqual(0);expect(r.bottom).toBeLessThanOrEqual(height+1);}
    }
-   if(width>=1800&&n===3){expect(new Set(measured.map(g=>Math.round(g.panel.top))).size).toBe(1);for(const g of measured){expect(g.record.left).toBeGreaterThan(g.board.right);expect(g.record.width).toBeGreaterThanOrEqual(160);expect(g.record.width).toBeLessThanOrEqual(180);expect(g.board.width).toBeGreaterThan(300);}}
-   if(width===1799&&n===3)expect(measured[2].panel.top).toBeGreaterThan(measured[0].panel.top);
+   if(width>=1440&&n===3){expect(new Set(measured.map(g=>Math.round(g.panel.top))).size).toBe(1);for(const g of measured){expect(g.record.left).toBeGreaterThan(g.board.right);expect(g.record.width).toBeGreaterThanOrEqual(160);expect(g.record.width).toBeLessThanOrEqual(180);expect(g.board.width).toBeGreaterThan(width>=1800?300:250);}}
+   if(width===1439&&n===3)expect(measured[2].panel.top).toBeGreaterThan(measured[0].panel.top);
    if(width<768){expect(measured[0].board.width).toBeGreaterThanOrEqual(190);expect(await page.locator('.inline-record-scroll').evaluate(el=>el.clientHeight)).toBeGreaterThanOrEqual(56);}
-   if((width===1920&&n===3)||(width===320&&n===1)||(width===393&&height===852&&n===1))await page.screenshot({path:`output/compact-workspace-implementation/${width}-${height}-${n}.png`});
+   if((width>=1440&&n===3)||(width===320&&n===1)||(width===393&&height===852&&n===1))await page.screenshot({path:`output/three-row-fix-20261107/${width}-${height}-${n}.png`});
   }
  }
 });
