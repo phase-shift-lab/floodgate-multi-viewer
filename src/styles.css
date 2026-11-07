@@ -1022,7 +1022,6 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .embedded-record .move-list b { margin-left:auto; }
 .embedded-record .move-list .record-branch { padding-left:12px; border-left:2px solid var(--accent); color:var(--accent); font-size:11px; white-space:normal; }
 .record-actions,.inline-record-pv { padding:4px 8px; }
-.record-actions summary { min-height:32px; }
 .record-kind { display:flex; flex-wrap:wrap; align-items:center; gap:4px; font-size:12px; }
 .record-kind select { min-height:44px; max-width:100%; }
 .integrated-panel>.connection { flex:none; height:14px; min-height:14px; font-size:9px; padding:0 5px; }

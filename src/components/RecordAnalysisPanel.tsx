@@ -78,7 +78,7 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
         <svg className="record-score-chart" viewBox="0 0 600 130" role="img" aria-label="先手基準の評価値推移。勝率ではありません。"><line x1="10" y1="65" x2="590" y2="65" stroke="currentColor" opacity=".3"/><polyline fill="none" stroke="var(--accent)" strokeWidth="2" points={state.results.map((entry,ply)=>entry.score?`${10+580*ply/Math.max(1,total-1)},${65-Math.max(-3000,Math.min(3000,entry.score.kind==='mate'?Math.sign(entry.score.value)*3000:entry.score.value))/3000*50}`:'').join(' ')}/></svg></>}
       <MoveList moveExtras={changed?undefined:moveExtras} game={snapshot} ply={selected} active={active} onPick={next=>{setSelected(next);onPick?.(next,snapshot);}} scores={state.game?state.results.map(entry=>entry.score):undefined}/>
       {result&&<details className="inline-record-pv"><summary>この手の解析結果</summary><ol>{result.candidates.map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{validatedPv(board,candidate.pv,12).labels.join(' → ')||'読み筋なし'}</p></li>)}</ol></details>}
-      <details className="record-actions"><summary>棋譜の操作</summary>{recordSelector}{recordFooter}<p>1局面ずつ端末で解析します。目安は残り約{remaining}分＋準備時間。CPU・電池を使用します。</p>{state.game&&<button disabled={busy||!onPrepare} onClick={()=>void start(false,undefined)}>最初から解析</button>}</details>
+      {(recordSelector||recordFooter||state.game)&&<div className="record-actions">{recordSelector}{recordFooter}{state.game&&<button disabled={busy||!onPrepare} onClick={()=>void start(false,undefined)}>最初から解析</button>}</div>}
     </div>
   </section>;
   return <section className="record-analysis" aria-label="全棋譜解析">
