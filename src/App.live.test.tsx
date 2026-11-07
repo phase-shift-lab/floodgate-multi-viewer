@@ -15,6 +15,26 @@ beforeEach(()=>{
 });
 afterEach(()=>{cleanup();vi.useRealTimers();vi.clearAllMocks();});
 
+it('レート条件は両者に適用し、境界を含め、条件指定時だけレート不明を除外する',async()=>{
+  const rates=[[2500,4000],[3000,3000],[2400,3000],[3000,4100],[3000,undefined],[undefined,3000],[undefined,undefined],[4000,2500]];
+  const games=rates.map(([blackRate,whiteRate],index)=>({...fixtureSummaries[0],id:'rated-'+index,black:'Rated'+index,live:false,blackRate,whiteRate}));
+  vi.mocked(loadCatalog).mockResolvedValue({games,fixture:false,stale:false,fetchedAt:new Date()});
+  vi.mocked(loadGame).mockImplementation(async summary=>({game:{...fixtureGames[0],...summary},fixture:false,stale:false,fetchedAt:new Date()}));
+  await act(async()=>{render(<App/>);});
+  fireEvent.click(screen.getAllByRole('button',{name:'過去対局'})[0]);
+  const rows=()=>[...document.querySelectorAll('.archive-list button')];
+  expect(rows()).toHaveLength(8);
+  fireEvent.change(screen.getByLabelText('レート下限（両者）'),{target:{value:'2500'}});
+  expect(rows()).toHaveLength(4);
+  fireEvent.change(screen.getByLabelText('レート上限（両者）'),{target:{value:'4000'}});
+  expect(rows()).toHaveLength(3);
+  for(const index of [0,1,7])expect(rows().some(row=>row.textContent?.includes('Rated'+index))).toBe(true);
+  fireEvent.change(screen.getByLabelText('レート下限（両者）'),{target:{value:''}});
+  expect(rows()).toHaveLength(4);
+  fireEvent.change(screen.getByLabelText('レート上限（両者）'),{target:{value:''}});
+  expect(rows()).toHaveLength(8);
+});
+
 it('後手勝ち検索は勝敗不明を除外し、指定日・AI名・レートと組み合わせる',async()=>{
   const summaries=['後手勝ち','先手勝ち',undefined,'後手勝ち'].map((result,index)=>({...fixtureSummaries[0],id:'archive-'+index,
     black:index===3?'Other':'Target',white:'White',live:false,result,startedAt:'2026-11-06T12:00:00+09:00',blackRate:index===3?1000:3000,whiteRate:3000}));
@@ -32,13 +52,13 @@ it('後手勝ち検索は勝敗不明を除外し、指定日・AI名・レー�
   expect(rows()).toHaveLength(2);
   expect(screen.getByText(/検索対象：2026-11-06の取得済み対局/)).toBeInTheDocument();
   fireEvent.change(screen.getByLabelText('AI名'),{target:{value:'Target'}});
-  fireEvent.change(screen.getByLabelText('レート下限'),{target:{value:'2500'}});
+  fireEvent.change(screen.getByLabelText('レート下限（両者）'),{target:{value:'2500'}});
   expect(rows()).toHaveLength(1);
   expect(rows()[0]).toHaveTextContent('Target');
-  fireEvent.change(screen.getByLabelText('レート上限'),{target:{value:'2900'}});
+  fireEvent.change(screen.getByLabelText('レート上限（両者）'),{target:{value:'2900'}});
   expect(rows()).toHaveLength(0);
   vi.mocked(loadDay).mockResolvedValue({games:[summaries[0]],fixture:true,stale:false,fetchedAt:new Date()});
-  fireEvent.change(screen.getByLabelText('レート上限'),{target:{value:''}});
+  fireEvent.change(screen.getByLabelText('レート上限（両者）'),{target:{value:''}});
   await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'指定日を取得'}));});
   await act(async()=>{await vi.advanceTimersByTimeAsync(30_000);});
   expect(rows()).toHaveLength(1);

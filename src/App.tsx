@@ -185,8 +185,8 @@ export default function App() {
     const max = maxRate ? Number(maxRate) : Infinity;
     const hasRateBounds = Boolean(minRate || maxRate);
     return games.filter((game) => {
-      const rates = [game.blackRate, game.whiteRate].filter((rate): rate is number => rate !== undefined);
-      const ratingMatch = !hasRateBounds || (rates.length > 0 && rates.some((rate) => rate >= min && rate <= max));
+      const ratingMatch = !hasRateBounds || [game.blackRate, game.whiteRate].every(
+        rate => typeof rate === 'number' && Number.isFinite(rate) && rate >= min && rate <= max);
       return (!term || game.black.toLowerCase().includes(term) || game.white.toLowerCase().includes(term))
         && (group === 'all' || game.group === group)
         && (!archiveSearch || (archiveSearch.fixture ? archiveSearch.ids.includes(game.id) : game.startedAt.slice(0,10)===archiveSearch.date))
@@ -399,8 +399,8 @@ export default function App() {
             <button disabled={!historyDate || historyLoading} onClick={searchDay}>{historyLoading ? '取得中…' : '指定日を取得'}</button>
             <label>対局グループ<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="all">すべて</option>{[...new Set(games.map((game) => game.group))].map((value) => <option key={value}>{value}</option>)}</select></label>
             <label>結果<select value={resultFilter} onChange={(event) => setResultFilter(event.target.value)}><option value="all">すべて</option><option value="live">進行中</option><option value="finished">終局</option><option value="先手">先手勝ち</option><option value="後手">後手勝ち</option></select></label>
-            <label>レート下限<input type="number" value={minRate} onChange={(event) => setMinRate(event.target.value)} placeholder="例 2500" /></label>
-            <label>レート上限<input type="number" value={maxRate} onChange={(event) => setMaxRate(event.target.value)} placeholder="例 4000" /></label>
+            <label>レート下限（両者）<input type="number" value={minRate} onChange={(event) => setMinRate(event.target.value)} placeholder="例 2500" /></label>
+            <label>レート上限（両者）<input type="number" value={maxRate} onChange={(event) => setMaxRate(event.target.value)} placeholder="例 4000" /></label>
             <label>並び順<select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="new">新しい順</option><option value="high">上位レート順</option><option value="low">下位レート順</option></select></label>
             <label className="favorite-filter"><input type="checkbox" checked={favoriteOnly} onChange={(event) => setFavoriteOnly(event.target.checked)} />お気に入りAIのみ</label>
           </div>
