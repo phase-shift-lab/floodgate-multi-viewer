@@ -25,7 +25,7 @@ export function RecordExport({game,variation,isVariation=false,headerTarget,onSh
   const controls=<div className={'record-export'+(headerTarget?' is-header':'')}>
     <div className="record-export-selects">{variation&&<select aria-label="出力する棋譜" value={target} onChange={e=>{setTarget(e.target.value);setMessage('');}}><option value="source">本譜</option><option value="variation">現在の変化</option></select>}
       <select aria-label="棋譜の出力形式" value={format} onChange={e=>{setFormat(e.target.value as RecordFormat);setMessage('');}}><option value="kif">KIF</option><option value="csa">CSA</option></select></div>
-    <div className="record-export-buttons"><button onClick={()=>void copy()}>コピー</button><button onClick={download}>DL</button>{onShare&&<button onClick={()=>void onShare().then(setMessage)}>共有</button>}</div>
+    <div className="record-export-buttons"><button onClick={download}>DL</button><button onClick={()=>void copy()}>コピー</button>{onShare&&<button onClick={()=>void onShare().then(setMessage)}>共有</button>}</div>
     <output aria-live="polite">{message}</output>
   </div>;
   return headerTarget?createPortal(controls,headerTarget):controls;

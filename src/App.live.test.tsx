@@ -3,6 +3,7 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import App from './App';
 import {fixtureGames,fixtureSummaries} from './data/fixtures';
 import {loadCatalog,loadDay,loadGame,type GameResult} from './data/client';
+import {DEFAULT_ARCHIVE_FILTERS,saveArchiveFilters} from './data/preferences';
 
 vi.mock('./data/client',async importOriginal=>({...await importOriginal<typeof import('./data/client')>(),STATIC_MODE:false,
   loadCatalog:vi.fn(),loadDay:vi.fn(),loadGame:vi.fn(),heartbeatStats:vi.fn().mockResolvedValue(undefined),recordPageView:vi.fn().mockResolvedValue(undefined)}));
@@ -14,6 +15,25 @@ beforeEach(()=>{
   localStorage.setItem('fgmv:settings:migrated:auto-switch-finished-default-on','1');
 });
 afterEach(()=>{cleanup();vi.useRealTimers();vi.clearAllMocks();});
+
+it('保存した検索条件を復元し、指定日の取得はユーザー操作まで行わない',async()=>{
+  saveArchiveFilters({...DEFAULT_ARCHIVE_FILTERS,minRate:'2500',maxRate:'4000',historyDate:'2026-11-06',group:'past-group',resultFilter:'後手'});
+  const past={...fixtureSummaries[0],group:'past-group',blackRate:3000,whiteRate:3500,live:false,result:'後手勝ち',startedAt:'2026-11-06T12:00:00+09:00'};
+  vi.mocked(loadCatalog).mockResolvedValue({games:[fixtureSummaries[1]],fixture:false,stale:false,fetchedAt:new Date()});
+  vi.mocked(loadDay).mockResolvedValue({games:[past],fixture:false,stale:false,fetchedAt:new Date()});
+  vi.mocked(loadGame).mockImplementation(async summary=>({game:{...fixtureGames[0],...summary},fixture:false,stale:false,fetchedAt:new Date()}));
+  await act(async()=>{render(<App/>);});
+  fireEvent.click(screen.getAllByRole('button',{name:'過去対局'})[0]);
+  expect(screen.getByLabelText('レート下限（両者）')).toHaveValue(2500);
+  expect(screen.getByLabelText('レート上限（両者）')).toHaveValue(4000);
+  expect(screen.getByLabelText('日付')).toHaveValue('2026-11-06');
+  expect(screen.getByLabelText('対局グループ')).toHaveValue('past-group');
+  expect(screen.getByLabelText('結果')).toHaveValue('後手');
+  expect(loadDay).not.toHaveBeenCalled();
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'指定日を取得'}));});
+  expect(document.querySelectorAll('.archive-list button')).toHaveLength(1);
+  expect(loadDay).toHaveBeenCalledWith('2026-11-06',expect.any(AbortSignal));
+});
 
 it.each(['list','recent','menu','expanded'])('手動選択した過去対局を保持する: %s',async route=>{
   localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:route==='expanded'?2:1,autoSwitchFinished:true}));
@@ -98,7 +118,7 @@ it('後手勝ち検索は勝敗不明を除外し、指定日・AI名・レー�
   expect(screen.getByText(/検索対象：同梱データ（指定日の実データではありません）/)).toBeInTheDocument();
 });
 
-it.each(['following','pinned','past','disabled'])('catalog retains CSA completion and respects %s viewing',async mode=>{
+it.each(['following','pinned','past','last','disabled'])('catalog retains CSA completion and respects %s viewing',async mode=>{
   localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:1,autoSwitchFinished:mode!=='disabled'}));
   const first={...fixtureSummaries[0],live:true,moves:2,blackRate:5000,whiteRate:5000};
   const next={...fixtureSummaries[1],live:true,blackRate:3000,whiteRate:3000};
@@ -113,10 +133,11 @@ it.each(['following','pinned','past','disabled'])('catalog retains CSA completio
   if(mode==='pinned'){
     fireEvent.click(label());fireEvent.click(screen.getByText('その他の操作'));fireEvent.click(screen.getByRole('button',{name:'ピン留め'}));
   }
-  if(mode==='past')fireEvent.click(screen.getByRole('button',{name:'1手戻る'}));
+  if(mode==='past'||mode==='last')fireEvent.click(screen.getByRole('button',{name:'1手戻る'}));
+  if(mode==='last')fireEvent.click(screen.getByRole('button',{name:'最後'}));
   ended=true;
   await act(async()=>{await vi.advanceTimersByTimeAsync(30_000);});
-  if(mode==='following') {
+  if(mode==='following'||mode==='last') {
     expect(label()).toHaveTextContent('LIVE · '+next.black+' vs '+next.white);
   } else expect(label()).toHaveTextContent('終局 · '+first.black+' vs '+first.white);
 });

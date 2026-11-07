@@ -12,7 +12,7 @@ export function BoardSurface({ context, caption, captionActions, evaluation, boa
   const workspace=useWorkspace();
   return <article ref={ref} data-selected={workspace?.selected} className={`game-panel unified-panel${workspace?' integrated-panel':''}${studying ? ' is-studying' : ''}`} aria-label={label} tabIndex={0} onKeyDown={onKeyDown}>
     {context}
-    <div className="unified-caption"><div className="unified-caption-text">{caption}<div className="unified-status" role="status">{status}</div></div>{captionActions}</div>
+    <div className="unified-caption"><div className="unified-caption-text">{caption}{status&&<div className="unified-status" role="status">{status}</div>}</div>{captionActions}</div>
     <div className="commentary-row">{evaluation}</div>
     {workspace ? <div className="workspace-body"><div className="workspace-board">{board}{controls}</div><aside className="workspace-record" aria-label="棋譜と全棋譜解析">{record}</aside></div> : <>{board}{controls}</>}
     {footer}

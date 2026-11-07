@@ -77,6 +77,7 @@ export function GamePanel(props: Props) {
   const recordOwner='watch:'+props.summary.id;
   const [dialogOpen,setDialogOpen] = useState(()=>!workspace&&hasRecordRecovery(recordOwner));
   const [detailTab,setDetailTab] = useState<DetailTab>('record');
+  const [captionExportTarget,setCaptionExportTarget] = useState<HTMLDivElement|null>(null);
   const [headerTarget,setHeaderTarget] = useState<HTMLDivElement | null>(null);
   const [detailsTarget,setDetailsTarget] = useState<HTMLDivElement | null>(null);
   const heldFollowing = useRef<boolean | undefined>(undefined);
@@ -223,7 +224,7 @@ export function GamePanel(props: Props) {
   const requestSettings=useEffectEvent(() => { if (!props.study) openDetails('settings'); });
   const lastSettingsRequest=useRef(props.settingsRequest);
   useEffect(() => { if (props.settingsRequest && props.settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=props.settingsRequest; },[props.settingsRequest]);
-  const gameMenu = <ToolsMenu disabled={Boolean(props.study)||props.suspended} label={<span>{props.fixture ? 'FIXTURE' : (game ?? props.summary).live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
+  const gameMenu = <ToolsMenu disabled={Boolean(props.study)||props.suspended} label={<span title={props.summary.black+' vs '+props.summary.white}><span className="game-choice-state">{props.fixture ? 'FIXTURE' : (game ?? props.summary).live ? '● LIVE' : '終局'} · </span>{props.summary.black} vs {props.summary.white}</span>}>
       <label className="game-choice-label">対局を選ぶ<select aria-label="表示する対局" value={props.summary.id} onChange={event => props.onSelect(event.target.value)}>{props.games.map(item => <option key={item.id} value={item.id}>{item.black} vs {item.white}</option>)}</select></label>
       <button className="menu-playback" onClick={()=>setPlaying(!playing)}>{playing?'停止':'再生'}</button>
       <details className="menu-secondary"><summary>その他の操作</summary><div>
@@ -249,18 +250,18 @@ export function GamePanel(props: Props) {
   </div>;
   return <BoardSurface label={props.summary.black+' 対 '+props.summary.white} onKeyDown={onKeyDown}
     caption={gameMenu}
-    captionActions={!workspace&&<><button className="context-share" onClick={()=>void copyShare().then(setShareMessage)}>共有</button>{shareMessage&&<output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}</>}
+    captionActions={workspace?<div className="caption-export" ref={setCaptionExportTarget}/>:<><button className="context-share" onClick={()=>void copyShare().then(setShareMessage)}>共有</button>{shareMessage&&<output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}</>}
     evaluation={board && props.onPrepareAnalysis && <LocalEvaluation board={board} position={enginePosition} enabled={analysisEnabled} onEnabledChange={changeAnalysisEnabled} onPrepare={props.onPrepareAnalysis} suspended={props.suspended} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} />}
     board={board ? <WatchBoard board={board} revision={props.summary.id+'|'+safePly+'|'+enginePosition} flipped={flipped} players={players} lastMove={safePly ? game?.moveList[safePly-1] : undefined} disabled={!props.onStudy||Boolean(studyUnavailable)||Boolean(props.suspended)} onNotice={setWatchNotice} onMove={async(move,isCurrent)=>{if(!game||!props.onStudy)return false;return props.onStudy(game,safePly,snapshot(),move,isCurrent);}}/> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
-    status={!followingLatest ? <><span>{watchNotice||(newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中')}</span><button onClick={() => moveTo(maxPly,true)}>最新</button></> : <span>{watchNotice||'最新手に追従中'}</span>}
-    controls={<BoardControls onFlip={() => { setFlipped(!flipped); props.onOrientationChange(!flipped); }} current={safePly && game ? formatMoveInGame(game,safePly) : '開始局面'} ply={safePly} max={maxPly} onPrevious={() => moveTo(safePly-1)} onNext={() => moveTo(safePly+1)} onCurrent={() => openDetails('record')} onSeek={next => moveTo(next)} action={playing ? '停止' : '再生'} onAction={() => setPlaying(!playing)} disabled={!game || props.suspended} previousDisabled={safePly === 0} nextDisabled={safePly === maxPly} />}
+    status={!workspace&&(!followingLatest ? <><span>{watchNotice||(newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中')}</span><button onClick={() => moveTo(maxPly,true)}>最新</button></> : <span>{watchNotice||'最新手に追従中'}</span>)}
+    controls={<BoardControls onFlip={() => { setFlipped(!flipped); props.onOrientationChange(!flipped); }} current={safePly && game ? formatMoveInGame(game,safePly) : '開始局面'} ply={safePly} max={maxPly} onPrevious={() => moveTo(safePly-1)} onNext={() => moveTo(safePly+1)} onCurrent={() => openDetails('record')} onSeek={next => moveTo(next,Boolean(workspace)&&next===maxPly)} action={playing ? '停止' : '再生'} onAction={() => setPlaying(!playing)} disabled={!game || props.suspended} previousDisabled={safePly === 0} nextDisabled={safePly === maxPly} />}
     footer={<div className="connection"><span className={'dot '+connection} aria-hidden="true" />接続: {connectionLabel(connection)}<span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span></div>}
     record={workspace&&game&&<RecordAnalysisPanel moveExtras={ply=>{
       const saved=props.savedStudy;
       if(saved?.game.id===game.id&&ply===saved.origin)return saved.nodes.root.children.map(id=><button className="record-branch" key={id} onClick={()=>props.onResumeStudy?.(id)}>↳ {formatMove(saved.nodes[id].move!)} · 保存した変化</button>);
       if(!saved&&ply===0&&props.onResumeStudy&&savedStudyExists(game.id))return <button className="record-branch" onClick={()=>props.onResumeStudy?.()}>↳ 保存した変化を開く</button>;
       return null;
-    }} embedded onShare={copyShare} owner={recordOwner} game={game} ply={safePly} active={!props.suspended} onPrepare={props.onPrepareAnalysis} onBusyChange={busy=>props.onDialogChange?.(props.summary.id,busy)} onPick={(next,record)=>{if(record.id===game.id&&positionKey(record.initial)===positionKey(game.initial)&&record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw))moveTo(next);}}/>}
+    }} embedded headerTarget={captionExportTarget} onShare={copyShare} owner={recordOwner} game={game} ply={safePly} active={!props.suspended} onPrepare={props.onPrepareAnalysis} onBusyChange={busy=>props.onDialogChange?.(props.summary.id,busy)} onPick={(next,record)=>{if(record.id===game.id&&positionKey(record.initial)===positionKey(game.initial)&&record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw))moveTo(next);}}/>}
     modal={<DetailPanel open={dialogOpen} tab={detailTab} onHeaderTarget={setHeaderTarget} onClose={() => closeDetails()}>
       <div className="record-pane" hidden={detailTab !== 'record'}>{!workspace && game && <RecordAnalysisPanel recordSelector={<div className="record-kind" role="group" aria-label="棋譜の種類"><button aria-pressed="true">本譜</button><button disabled title="盤面の駒を動かすと変化を作成できます">変化</button></div>} headerTarget={headerTarget} owner={recordOwner} game={game} ply={safePly} active={dialogOpen && detailTab === 'record' && !props.suspended} onPrepare={props.onPrepareAnalysis} onPick={(next,record) => { if(record.id===game.id && positionKey(record.initial)===positionKey(game.initial) && record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw)) { moveTo(next); closeDetails(false); } }} />}</div>
       <div hidden={detailTab !== 'analysis'} ref={setDetailsTarget} className="unified-analysis" />

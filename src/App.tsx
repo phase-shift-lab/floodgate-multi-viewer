@@ -11,7 +11,7 @@ import { CompletedGames } from './data/completedGames';
 import { initialGames } from './data/initialGames';
 import { GamePanel } from './components/GamePanel';
 import { heartbeatStats, loadCatalog, loadDay, recordPageView, STATIC_MODE, type ViewerStats } from './data/client';
-import { addRecent, getStatsSessionId, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings } from './data/preferences';
+import { addRecent, getStatsSessionId, loadArchiveFilters, loadFavorites, loadRecent, loadSettings, readShareState, saveArchiveFilters, saveFavorites, saveSettings, type ArchiveFilters } from './data/preferences';
 import { compareGames, replaceFinishedSlots, selectFeaturedGames } from './domain/selection';
 import { BOARD_COUNTS, type BoardCount, type GameSummary, type Move, type ParsedGame, type ViewerSettings } from './domain/types';
 
@@ -68,15 +68,17 @@ export default function App() {
   const [status, setStatus] = useState<'loading' | 'ready' | 'fixture' | 'empty' | 'error'>('loading');
   const [view, setView] = useState<'live' | 'archive'>(analysisRecovery?.view ?? share.view ?? 'live');
   const [expanded, setExpanded] = useState<number | undefined>(analysisRecovery?.expanded);
-  const [historyDate, setHistoryDate] = useState('');
+  const [savedArchiveFilters] = useState(loadArchiveFilters);
+  const [archiveFiltersSaved,setArchiveFiltersSaved] = useState(true);
+  const [historyDate, setHistoryDate] = useState(savedArchiveFilters.historyDate);
   const [archiveSearch,setArchiveSearch] = useState<{date:string;fixture:boolean;ids:string[]}>();
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [query, setQuery] = useState('');
-  const [group, setGroup] = useState('all');
-  const [resultFilter, setResultFilter] = useState('all');
-  const [minRate, setMinRate] = useState('');
-  const [maxRate, setMaxRate] = useState('');
-  const [sort, setSort] = useState<'new' | 'high' | 'low'>('new');
+  const [query, setQuery] = useState(savedArchiveFilters.query);
+  const [group, setGroup] = useState(savedArchiveFilters.group);
+  const [resultFilter, setResultFilter] = useState<ArchiveFilters['resultFilter']>(savedArchiveFilters.resultFilter);
+  const [minRate, setMinRate] = useState(savedArchiveFilters.minRate);
+  const [maxRate, setMaxRate] = useState(savedArchiveFilters.maxRate);
+  const [sort, setSort] = useState<ArchiveFilters['sort']>(savedArchiveFilters.sort);
   const analysisContext=useRef({slots,games,view,expanded,settings});
   useLayoutEffect(()=>{analysisContext.current={slots,games,view,expanded,settings};},[slots,games,view,expanded,settings]);
   const recordFinished = useCallback((game:GameSummary) => {
@@ -87,7 +89,13 @@ export default function App() {
     const protectedIds=new Set([...dialogGames.current,...manuallySelectedPastGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
     setSlots(current=>replaceFinishedSlots(current,completedGames.apply(context.games),protectedIds));
   },[completedGames,share.game]);
-  const [favoriteOnly, setFavoriteOnly] = useState(false);
+  const [favoriteOnly, setFavoriteOnly] = useState(savedArchiveFilters.favoriteOnly);
+  useEffect(()=>{
+    const saved=saveArchiveFilters({query,group,historyDate,minRate,maxRate,resultFilter,sort,favoriteOnly});
+    let active=true;
+    queueMicrotask(()=>{if(active)setArchiveFiltersSaved(saved);});
+    return()=>{active=false;};
+  },[query,group,historyDate,minRate,maxRate,resultFilter,sort,favoriteOnly]);
   const [viewerStats, setViewerStats] = useState<ViewerStats>();
   const [statsChecked, setStatsChecked] = useState(false);
   const [statsSessionId] = useState(getStatsSessionId);
@@ -406,12 +414,13 @@ export default function App() {
           <div className="section-title"><div><span className="eyebrow">ARCHIVE</span><h2 id="archive-title">過去対局を探す</h2></div><span>{filteredGames.length}局</span></div>
           <button className="archive-white-win" aria-pressed={resultFilter==='後手'} onClick={()=>setResultFilter('後手')}>後手勝ちを探す</button>
           <p className="archive-scope" role="status">検索対象：{(archiveSearch?.fixture??status==='fixture')?'同梱データ（指定日の実データではありません）':archiveSearch?archiveSearch.date+'の取得済み対局':'この画面に取得済みの対局'}。勝敗不明の対局は勝ち側の検索に含めません。</p>
+          <p className="archive-scope" role="status">{archiveFiltersSaved?'検索条件はこのブラウザーに自動保存されます。日付の対局は「指定日を取得」で読み込みます。':'検索条件を保存できません。このタブ内でのみ保持されます。'}</p>
           <div className="filters">
             <label>AI名<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="名前で絞り込み" /></label>
             <label>日付<input type="date" value={historyDate} onChange={(event) => setHistoryDate(event.target.value)} /></label>
             <button disabled={!historyDate || historyLoading} onClick={searchDay}>{historyLoading ? '取得中…' : '指定日を取得'}</button>
-            <label>対局グループ<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="all">すべて</option>{[...new Set(games.map((game) => game.group))].map((value) => <option key={value}>{value}</option>)}</select></label>
-            <label>結果<select value={resultFilter} onChange={(event) => setResultFilter(event.target.value)}><option value="all">すべて</option><option value="live">進行中</option><option value="finished">終局</option><option value="先手">先手勝ち</option><option value="後手">後手勝ち</option></select></label>
+            <label>対局グループ<select value={group} onChange={(event) => setGroup(event.target.value)}><option value="all">すべて</option>{[...new Set([...(group==='all'?[]:[group]),...games.map((game) => game.group)])].map((value) => <option key={value}>{value}</option>)}</select></label>
+            <label>結果<select value={resultFilter} onChange={(event) => setResultFilter(event.target.value as ArchiveFilters['resultFilter'])}><option value="all">すべて</option><option value="live">進行中</option><option value="finished">終局</option><option value="先手">先手勝ち</option><option value="後手">後手勝ち</option></select></label>
             <label>レート下限（両者）<input type="number" value={minRate} onChange={(event) => setMinRate(event.target.value)} placeholder="例 2500" /></label>
             <label>レート上限（両者）<input type="number" value={maxRate} onChange={(event) => setMaxRate(event.target.value)} placeholder="例 4000" /></label>
             <label>並び順<select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="new">新しい順</option><option value="high">上位レート順</option><option value="low">下位レート順</option></select></label>

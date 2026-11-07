@@ -4,6 +4,7 @@ const SETTINGS_KEY = 'fgmv:settings:v1';
 const SETTINGS_MIGRATION_KEY = 'fgmv:settings:migrated:auto-switch-finished-default-on';
 const FAVORITES_KEY = 'fgmv:favorites:v1';
 const RECENT_KEY = 'fgmv:recent:v1';
+const ARCHIVE_FILTERS_KEY = 'fgmv:archive-filters:v1';
 const STATS_SESSION_KEY = 'fgmv:stats-session:v1';
 const STATS_SESSION_PATTERN = /^[a-zA-Z0-9_-]{8,80}$/;
 
@@ -49,6 +50,38 @@ export function loadSettings(): ViewerSettings {
 
 export function saveSettings(settings: ViewerSettings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+export interface ArchiveFilters {
+  query:string; group:string; historyDate:string; minRate:string; maxRate:string;
+  resultFilter:'all'|'live'|'finished'|'先手'|'後手';
+  sort:'new'|'high'|'low'; favoriteOnly:boolean;
+}
+export const DEFAULT_ARCHIVE_FILTERS:ArchiveFilters = {
+  query:'',group:'all',historyDate:'',minRate:'',maxRate:'',resultFilter:'all',sort:'new',favoriteOnly:false,
+};
+
+export function loadArchiveFilters():ArchiveFilters {
+  try {
+    const raw:unknown=JSON.parse(localStorage.getItem(ARCHIVE_FILTERS_KEY)??'{}');
+    const value=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw as Record<string,unknown>:{};
+    const text=(key:string)=>typeof value[key]==='string'?(value[key] as string).slice(0,200):'';
+    const rate=(key:string)=>{const value=text(key).trim();return value&&Number.isFinite(Number(value))?value:'';};
+    const date=text('historyDate');
+    return {
+      query:text('query'),group:text('group')||'all',
+      historyDate:/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date).toISOString().slice(0,10)===date?date:'',
+      minRate:rate('minRate'),maxRate:rate('maxRate'),
+      resultFilter:['all','live','finished','先手','後手'].includes(text('resultFilter'))?text('resultFilter') as ArchiveFilters['resultFilter']:'all',
+      sort:['new','high','low'].includes(text('sort'))?text('sort') as ArchiveFilters['sort']:'new',
+      favoriteOnly:value.favoriteOnly===true,
+    };
+  }catch{return {...DEFAULT_ARCHIVE_FILTERS};}
+}
+
+export function saveArchiveFilters(filters:ArchiveFilters):boolean {
+  try {localStorage.setItem(ARCHIVE_FILTERS_KEY,JSON.stringify(filters));return true;}
+  catch{return false;}
 }
 
 export function loadFavorites(): string[] { return read<string[]>(FAVORITES_KEY, []); }

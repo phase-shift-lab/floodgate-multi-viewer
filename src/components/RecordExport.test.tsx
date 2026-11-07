@@ -33,10 +33,10 @@ it('reports clipboard denial and downloads a UTF-8 record using a safe filename'
  expect(filename).toMatch(/_A_vs_B\.kifu$/);
  expect(document.querySelector('a[download]')).toBeNull();
 });
-it('keeps format copy download share in order and reports the source URL action',async()=>{
+it('keeps format download copy share in order and reports the source URL action',async()=>{
  const onShare=vi.fn().mockResolvedValue('元対局のURLをコピーしました。変化は含みません。');
  render(<RecordExport game={game} onShare={onShare}/>);
- expect(screen.getAllByRole('button').map(button=>button.textContent)).toEqual(['コピー','DL','共有']);
+ expect(screen.getAllByRole('button').map(button=>button.textContent)).toEqual(['DL','コピー','共有']);
  fireEvent.click(screen.getByRole('button',{name:'共有'}));
  await waitFor(()=>expect(screen.getByText('元対局のURLをコピーしました。変化は含みません。')).toBeInTheDocument());
  expect(onShare).toHaveBeenCalledOnce();

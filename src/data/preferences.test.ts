@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it } from 'vitest';
-import { addRecent, loadFavorites, loadRecent, loadSettings, readShareState, saveFavorites, saveSettings, shareUrl } from './preferences';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { addRecent, DEFAULT_ARCHIVE_FILTERS, loadArchiveFilters, loadFavorites, loadRecent, loadSettings, readShareState, saveArchiveFilters, saveFavorites, saveSettings, shareUrl } from './preferences';
 
 describe('preferences', () => {
   it('3局を保存・共有し、非対応の局数は既定値へ戻す',()=>{
@@ -13,6 +13,25 @@ describe('preferences', () => {
     saveSettings({...loadSettings(),boardCount:2});expect(loadSettings().boardCount).toBe(2);
   });
   beforeEach(() => localStorage.clear());
+
+  it('過去対局の検索条件をまとめて保存・復元し、解除したレート条件も保存する',()=>{
+    const filters={...DEFAULT_ARCHIVE_FILTERS,query:'Target',group:'floodgate',historyDate:'2026-11-07',minRate:'2500',maxRate:'4000',resultFilter:'後手' as const,sort:'high' as const,favoriteOnly:true};
+    expect(saveArchiveFilters(filters)).toBe(true);
+    expect(loadArchiveFilters()).toEqual(filters);
+    saveArchiveFilters({...filters,minRate:'',maxRate:''});
+    expect(loadArchiveFilters()).toEqual({...filters,minRate:'',maxRate:''});
+  });
+  it('検索条件の壊れたJSONや不正な型・値では既定値へ戻す',()=>{
+    for(const value of ['{invalid','null','[]',JSON.stringify({query:42,group:false,historyDate:'2026-02-30',minRate:'Infinity',maxRate:'invalid',resultFilter:'unknown',sort:'unknown',favoriteOnly:'true'})]) {
+      localStorage.setItem('fgmv:archive-filters:v1',value);
+      expect(loadArchiveFilters()).toEqual(DEFAULT_ARCHIVE_FILTERS);
+    }
+  });
+  it('検索条件の保存拒否を呼び出し元へ返す',()=>{
+    const denied=vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new Error('denied');});
+    try {expect(saveArchiveFilters(DEFAULT_ARCHIVE_FILTERS)).toBe(false);}
+    finally {denied.mockRestore();}
+  });
 
   it('配列設定を配列のまま復元する', () => {
     saveFavorites(['Alpha', 'Beta']);

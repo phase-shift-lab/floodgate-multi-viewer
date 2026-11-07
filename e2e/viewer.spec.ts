@@ -16,6 +16,7 @@ test('phone keeps the selected count and shared counts do not overwrite it',asyn
 
 test('game selection is prominent and duplicate menu buttons stay removed',async({page})=>{
  await disabledAnalysis(page);await page.goto(base);const p=page.locator('.unified-panel').first();await p.getByRole('button',{name:'対局を選ぶ',exact:true}).click();
+ const titleButton=p.getByRole('button',{name:'対局を選ぶ',exact:true});expect((await titleButton.boundingBox())!.height).toBeGreaterThanOrEqual(44);expect(await titleButton.evaluate(el=>parseFloat(getComputedStyle(el).borderTopWidth))).toBeGreaterThan(0);
  const menu=p.locator('.board-tools-content');await expect(menu.getByLabel('表示する対局')).toBeVisible();
  expect((await menu.getByLabel('表示する対局').boundingBox())!.height).toBeGreaterThanOrEqual(48);
  await expect(menu.getByRole('button')).toHaveCount(1);
@@ -33,4 +34,23 @@ test('menu retains pin flip replay share favorite expand and settings',async({pa
 });
 test('archive selection, record picking and replay work',async({page})=>{
  await disabledAnalysis(page);await page.goto(base);await page.getByRole('button',{name:'過去対局',exact:true}).click();await expect(page.locator('.archive-search')).toBeVisible();await page.locator('.archive-list button').first().click();const p=page.locator('.unified-panel').first();await p.locator('.move-list button').nth(1).click();await expect(p.locator('.shogi-board')).toHaveAttribute('aria-label','将棋盤 1手目');await tools(p);await p.getByRole('button',{name:'再生',exact:true}).click();await expect(p.locator('.shogi-board')).not.toHaveAttribute('aria-label','将棋盤 1手目');
+});
+
+test('archive search conditions persist across reloads on desktop and phone',async({page})=>{
+ await disabledAnalysis(page);
+ for(const width of [1440,393]) {
+  await page.setViewportSize({width,height:852});await page.goto(base+'?view=archive');
+  await page.getByLabel('AI名',{exact:true}).fill('Target');await page.getByLabel('日付',{exact:true}).fill('2026-11-06');
+  const group=await page.getByRole('combobox',{name:'対局グループ',exact:true}).locator('option').nth(1).getAttribute('value')??await page.getByRole('combobox',{name:'対局グループ',exact:true}).locator('option').nth(1).textContent();
+  await page.getByRole('combobox',{name:'対局グループ',exact:true}).selectOption(group!);await page.getByRole('combobox',{name:'結果',exact:true}).selectOption('後手');
+  await page.getByLabel('レート下限（両者）').fill('2500');await page.getByLabel('レート上限（両者）').fill('4000');
+  await page.getByRole('combobox',{name:'並び順',exact:true}).selectOption('high');await page.getByLabel('お気に入りAIのみ').check();
+  await page.reload();
+  await expect(page.getByLabel('AI名',{exact:true})).toHaveValue('Target');await expect(page.getByLabel('日付',{exact:true})).toHaveValue('2026-11-06');
+  await expect(page.getByRole('combobox',{name:'対局グループ',exact:true})).toHaveValue(group!);await expect(page.getByRole('combobox',{name:'結果',exact:true})).toHaveValue('後手');
+  await expect(page.getByLabel('レート下限（両者）')).toHaveValue('2500');await expect(page.getByLabel('レート上限（両者）')).toHaveValue('4000');
+  await expect(page.getByRole('combobox',{name:'並び順',exact:true})).toHaveValue('high');await expect(page.getByLabel('お気に入りAIのみ')).toBeChecked();
+  await page.getByLabel('レート下限（両者）').fill('');await page.getByLabel('レート上限（両者）').fill('');await page.reload();
+  await expect(page.getByLabel('レート下限（両者）')).toHaveValue('');await expect(page.getByLabel('レート上限（両者）')).toHaveValue('');
+ }
 });

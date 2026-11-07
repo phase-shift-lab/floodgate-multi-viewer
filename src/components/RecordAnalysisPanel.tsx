@@ -71,7 +71,7 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
   if(embedded)return <section className="record-analysis embedded-record" aria-label="全棋譜解析">
     {foreground&&workspace?.controlsTarget&&createPortal(analysisControls,workspace.controlsTarget)}
     <div className="inline-record-header"><strong>{isVariation?'変化':'棋譜'}</strong><span>{selected} / {snapshot.moveList.length}手</span></div>
-    <RecordExport game={snapshot} isVariation={isVariation} onShare={onShare}/>
+    <RecordExport game={snapshot} isVariation={isVariation} onShare={onShare} headerTarget={headerTarget}/>
     <div className="inline-record-scroll">
       {changed&&<p className="record-analysis-note">新しい棋譜・変化があります。<button onClick={()=>{controller.clear();clearRecordRecovery(owner);}}>最新の棋譜を表示</button></p>}
       {state.game&&<><p role="status" aria-label="全棋譜解析の状態">{phases[state.phase]} · {state.results.length} / {total}局面</p><progress aria-label="全棋譜解析の進捗" value={state.results.length} max={total}/>{state.message&&<p role="alert">{state.message}</p>}
