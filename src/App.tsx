@@ -41,6 +41,7 @@ export default function App() {
   },[panelRevision]);
   const recovery = restoredWatch ?? analysisRecovery;
   const share = useMemo(() => readShareState(), []);
+  const manuallySelectedPastGames = useRef(new Set<string>());
   const [savedSettings] = useState(loadSettings);
   const preferredBoardCount = useRef(savedSettings.boardCount);
   const [settings, setSettings] = useState<ViewerSettings>(() => {
@@ -83,7 +84,7 @@ export default function App() {
     setGames(current=>completedGames.apply(current));
     const context=analysisContext.current;
     if(!context.settings.autoSwitchFinished||context.view!=='live'||studyingRef.current||validation.current)return;
-    const protectedIds=new Set([...dialogGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
+    const protectedIds=new Set([...dialogGames.current,...manuallySelectedPastGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
     setSlots(current=>replaceFinishedSlots(current,completedGames.apply(context.games),protectedIds));
   },[completedGames,share.game]);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
@@ -119,7 +120,7 @@ export default function App() {
             return [...(shared?[shared]:[]),...featured].map(game=>({id:game.id,pinned:false}));
           }
           if (!settings.autoSwitchFinished) return current;
-          const protectedIds=new Set([...dialogGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
+          const protectedIds=new Set([...dialogGames.current,...manuallySelectedPastGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
           return replaceFinishedSlots(current,result.games,protectedIds);
         });
       } catch {
@@ -153,6 +154,18 @@ export default function App() {
       const recommended = selectFeaturedGames(games.filter((game) => !exclude.has(game.id)), count - pinned.length);
       return [...pinned, ...recommended.map((game) => ({ id: game.id, pinned: false }))];
     });
+  };
+
+  const protectSelectedPastGame = (id:string) => {
+    if(games.some(game=>game.id===id&&!game.live))manuallySelectedPastGames.current.add(id);
+  };
+  const openArchivedGame = (id:string) => {
+    protectSelectedPastGame(id);
+    setSlots(current=>[{id,pinned:false},...current.slice(1)]);
+    setExpanded(undefined);
+    activePanel.current=0;
+    setSelectedPanel(0);
+    setView('live');
   };
 
   const toggleFavorite = (name: string) => {
@@ -404,8 +417,8 @@ export default function App() {
             <label>並び順<select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="new">新しい順</option><option value="high">上位レート順</option><option value="low">下位レート順</option></select></label>
             <label className="favorite-filter"><input type="checkbox" checked={favoriteOnly} onChange={(event) => setFavoriteOnly(event.target.checked)} />お気に入りAIのみ</label>
           </div>
-          <details className="recent-games"><summary>最近見た対局（{recent.length}）</summary>{recent.length ? <ul>{recent.map((id) => <li key={id}><button disabled={!games.some((game) => game.id === id)} onClick={() => { setSlots((current) => [{ id, pinned: false }, ...current.slice(1)]); setView('live'); }}>{games.find((game) => game.id === id)?.black ?? id} {games.find((game) => game.id === id) ? `vs ${games.find((game) => game.id === id)?.white}` : '（一覧外）'}</button></li>)}</ul> : <p>まだありません。</p>}</details>
-          <div className="archive-list">{filteredGames.map((game) => <button key={game.id} onClick={() => { setSlots((current) => [{ id: game.id, pinned: false }, ...current.slice(1)]); setView('live'); }}><span>{status === 'fixture' ? 'FIXTURE' : game.live ? 'LIVE' : game.result ?? '終局'}</span><strong>{game.black} <small>vs</small> {game.white}</strong><span>{game.startedAt ? new Date(game.startedAt).toLocaleString('ja-JP') : '日時不明'} · {game.group}</span></button>)}</div>
+          <details className="recent-games"><summary>最近見た対局（{recent.length}）</summary>{recent.length ? <ul>{recent.map((id) => <li key={id}><button disabled={!games.some((game) => game.id === id)} onClick={() => openArchivedGame(id)}>{games.find((game) => game.id === id)?.black ?? id} {games.find((game) => game.id === id) ? `vs ${games.find((game) => game.id === id)?.white}` : '（一覧外）'}</button></li>)}</ul> : <p>まだありません。</p>}</details>
+          <div className="archive-list">{filteredGames.map((game) => <button key={game.id} onClick={() => openArchivedGame(game.id)}><span>{status === 'fixture' ? 'FIXTURE' : game.live ? 'LIVE' : game.result ?? '終局'}</span><strong>{game.black} <small>vs</small> {game.white}</strong><span>{game.startedAt ? new Date(game.startedAt).toLocaleString('ja-JP') : '日時不明'} · {game.group}</span></button>)}</div>
         </section>}
 
         {view === 'live' && <section className="live-section" aria-label="対局盤面" onPointerDownCapture={event => { const panel=(event.target as HTMLElement).closest('.unified-panel'); const index=[...event.currentTarget.querySelectorAll('.unified-panel')].indexOf(panel as Element); if (index >= 0) {activePanel.current=expanded??index;setSelectedPanel(expanded??index);} }} onFocusCapture={event => { const panel=(event.target as HTMLElement).closest('.unified-panel'); const index=[...event.currentTarget.querySelectorAll('.unified-panel')].indexOf(panel as Element); if (index >= 0) {activePanel.current=expanded??index;setSelectedPanel(expanded??index);} }}>
@@ -416,7 +429,7 @@ export default function App() {
               const realIndex = expanded !== undefined ? expanded : index;
               const restoredPanel = recovery?.slots[realIndex]?.summary.id === summary.id ? recovery.slots[realIndex] : undefined;
               return <WorkspaceContext.Provider key={panelRevision+':'+realIndex+':'+slot.id} value={{layout:workspaceLayout,selected:studying||realIndex===(expanded??Math.min(selectedPanel,visibleSlots.length-1)),controlsTarget:recordControlsTarget}}><GamePanel onGameFinished={recordFinished} settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} savedStudy={study?.game.id===summary.id?study:undefined} onResumeStudy={hasSavedStudy ? nodeId => void resumeStudy(false,realIndex,nodeId) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
-                key={`${panelRevision}:${restoredWatch?.at ?? 0}:${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value))} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} /></WorkspaceContext.Provider>;
+                key={`${panelRevision}:${restoredWatch?.at ?? 0}:${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => {protectSelectedPastGame(id);setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value));}} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} /></WorkspaceContext.Provider>;
             })}
           </div>}
         </section>}

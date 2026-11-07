@@ -15,6 +15,39 @@ beforeEach(()=>{
 });
 afterEach(()=>{cleanup();vi.useRealTimers();vi.clearAllMocks();});
 
+it.each(['list','recent','menu','expanded'])('手動選択した過去対局を保持する: %s',async route=>{
+  localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:route==='expanded'?2:1,autoSwitchFinished:true}));
+  const past={...fixtureSummaries[0],black:'Archived',live:false,moves:2,result:'後手勝ち'};
+  const live={...fixtureSummaries[1],black:'Current',live:true,moves:2};
+  const other={...fixtureSummaries[2],black:'OtherLive',live:true,moves:2};
+  localStorage.setItem('fgmv:recent:v1',JSON.stringify([past.id]));
+  vi.mocked(loadCatalog).mockResolvedValue({games:[past,live,other],fixture:false,stale:false,fetchedAt:new Date()});
+  vi.mocked(loadGame).mockImplementation(async summary=>({game:{...fixtureGames[0],...summary,moveList:fixtureGames[0].moveList.slice(0,2)},fixture:false,stale:false,fetchedAt:new Date()}));
+  await act(async()=>{render(<App/>);});
+  const selected=()=>screen.getAllByRole('button',{name:'対局を選ぶ'})[0];
+  expect(selected()).not.toHaveTextContent('Archived');
+  if(route==='menu') {
+    fireEvent.click(selected());
+    await act(async()=>{fireEvent.change(screen.getByLabelText('表示する対局'),{target:{value:past.id}});});
+  }else {
+    if(route==='expanded') {
+      fireEvent.click(screen.getAllByRole('button',{name:'対局を選ぶ'})[1]);
+      fireEvent.click(screen.getByText('その他の操作'));
+      fireEvent.click(screen.getByRole('button',{name:'単局拡大'}));
+      expect(screen.getAllByRole('button',{name:'対局を選ぶ'})).toHaveLength(1);
+    }
+    fireEvent.click(screen.getAllByRole('button',{name:'過去対局'})[0]);
+    if(route==='recent')fireEvent.click(screen.getByText(/最近見た対局（/));
+    const selector=route==='recent'?'.recent-games button':'.archive-list button';
+    const link=[...document.querySelectorAll<HTMLButtonElement>(selector)].find(button=>button.textContent?.includes('Archived'))!;
+    await act(async()=>{fireEvent.click(link);});
+  }
+  expect(selected()).toHaveTextContent('終局 · Archived');
+  if(route==='expanded')expect(screen.getAllByRole('button',{name:'対局を選ぶ'})).toHaveLength(2);
+  await act(async()=>{await vi.advanceTimersByTimeAsync(30_000);});
+  expect(selected()).toHaveTextContent('終局 · Archived');
+});
+
 it('レート条件は両者に適用し、境界を含め、条件指定時だけレート不明を除外する',async()=>{
   const rates=[[2500,4000],[3000,3000],[2400,3000],[3000,4100],[3000,undefined],[undefined,3000],[undefined,undefined],[4000,2500]];
   const games=rates.map(([blackRate,whiteRate],index)=>({...fixtureSummaries[0],id:'rated-'+index,black:'Rated'+index,live:false,blackRate,whiteRate}));
