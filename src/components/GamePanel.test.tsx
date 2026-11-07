@@ -39,6 +39,14 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe('GamePanel live following', () => {
+  it('対局の同接と日別来場数を常時表示し、未取得を0人と混同しない',async()=>{
+    const view=render(<GamePanel {...panelProps()} stats={{concurrent:12,viewsToday:1234}}/>);await flushLoad();
+    expect(screen.getByLabelText('この対局の閲覧状況')).toHaveTextContent('同接 12人来場 1,234人/日');
+    view.rerender(<GamePanel {...panelProps()} stats={{concurrent:0,viewsToday:0}}/>);await flushLoad();
+    expect(screen.getByLabelText('この対局の閲覧状況')).toHaveTextContent('同接 0人来場 0人/日');
+    view.rerender(<GamePanel {...panelProps()}/>);await flushLoad();
+    expect(screen.getByLabelText('この対局の閲覧状況')).toHaveTextContent('同接 —来場 —');
+  });
   it('caps failed retries, resumes latest following, and cancels the timer on unmount',async()=>{
     const view=render(<GamePanel {...panelProps()} />);await flushLoad();
     vi.mocked(loadGame).mockResolvedValue({...resultAt(0),fixture:true});

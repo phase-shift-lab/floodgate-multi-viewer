@@ -232,7 +232,6 @@ export function GamePanel(props: Props) {
         <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
         {props.onResumeStudy && <button onClick={()=>props.onResumeStudy?.()}>前の検討を再開</button>}
         <p>{safePly}手 / {maxPly}手 · {board?.turn === '+' ? '先手番' : '後手番'} · {game?.result ?? (game?.live ? '対局中' : '結果不明')}</p>
-        <p>観戦 {formatPeoplePerDay(props.stats?.viewsToday)} · 同時 {formatPeople(props.stats?.concurrent)}</p>
       </div></details>
     </ToolsMenu>;
   const players:BoardPlayers={
@@ -255,7 +254,7 @@ export function GamePanel(props: Props) {
     board={board ? <WatchBoard board={board} revision={props.summary.id+'|'+safePly+'|'+enginePosition} flipped={flipped} players={players} lastMove={safePly ? game?.moveList[safePly-1] : undefined} disabled={!props.onStudy||Boolean(studyUnavailable)||Boolean(props.suspended)} onNotice={setWatchNotice} onMove={async(move,isCurrent)=>{if(!game||!props.onStudy)return false;return props.onStudy(game,safePly,snapshot(),move,isCurrent);}}/> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
     status={!workspace&&(!followingLatest ? <><span>{watchNotice||(newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中')}</span><button onClick={() => moveTo(maxPly,true)}>最新</button></> : <span>{watchNotice||'最新手に追従中'}</span>)}
     controls={<BoardControls onFlip={() => { setFlipped(!flipped); props.onOrientationChange(!flipped); }} current={safePly && game ? formatMoveInGame(game,safePly) : '開始局面'} ply={safePly} max={maxPly} onPrevious={() => moveTo(safePly-1)} onNext={() => moveTo(safePly+1)} onCurrent={() => openDetails('record')} onSeek={next => moveTo(next,Boolean(workspace)&&next===maxPly)} action={playing ? '停止' : '再生'} onAction={() => setPlaying(!playing)} disabled={!game || props.suspended} previousDisabled={safePly === 0} nextDisabled={safePly === maxPly} />}
-    footer={<div className="connection"><span className={'dot '+connection} aria-hidden="true" />接続: {connectionLabel(connection)}<span>取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span></div>}
+    footer={<div className="connection"><span className="connection-detail"><span className={'dot '+connection} aria-hidden="true" />接続: {connectionLabel(connection)}</span><span className="connection-time">取得 {fetchedAt ? fetchedAt.toLocaleTimeString('ja-JP') : '—'}</span><span className="game-audience" aria-label="この対局の閲覧状況" title="この対局の同接人数・本日の来場者数"><span>同接 {formatPeople(props.stats?.concurrent)}</span><span>来場 {formatPeoplePerDay(props.stats?.viewsToday)}</span></span></div>}
     record={workspace&&game&&<RecordAnalysisPanel moveExtras={ply=>{
       const saved=props.savedStudy;
       if(saved?.game.id===game.id&&ply===saved.origin)return saved.nodes.root.children.map(id=><button className="record-branch" key={id} onClick={()=>props.onResumeStudy?.(id)}>↳ {formatMove(saved.nodes[id].move!)} · 保存した変化</button>);
@@ -270,5 +269,5 @@ export function GamePanel(props: Props) {
 }
 
 function connectionLabel(state: ConnectionState): string { return { connecting:'接続中',online:'オンライン',stale:'stale',offline:'fixture',paused:'再接続待ち' }[state]; }
-function formatPeoplePerDay(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人/日' : '-'; }
-function formatPeople(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人' : '-'; }
+function formatPeoplePerDay(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人/日' : '—'; }
+function formatPeople(value: number | undefined): string { return typeof value === 'number' && Number.isFinite(value) ? value.toLocaleString('ja-JP')+'人' : '—'; }
