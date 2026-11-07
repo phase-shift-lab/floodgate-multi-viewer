@@ -999,7 +999,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .integrated-app .boards .integrated-panel .board-stack { width:var(--unified-board-size); max-width:100%; margin:0; --board-piece-width:calc(78cqw / 9); --board-piece-height:calc(86cqw / 9); --board-piece-font-size:6.8cqw; --hand-count-font-size:3cqw; --hand-count-overhang:4cqw; }
 .integrated-app .integrated-panel .board-player { min-height:22px; height:22px; }
 .integrated-app .integrated-panel .board-player .star { min-height:20px; }
-.integrated-app .integrated-panel .hand:has(.hand-empty) { height:0; min-height:0; padding:0; margin:0; }
+.integrated-app .integrated-panel .hand { height:calc(var(--board-piece-height) + var(--hand-count-overhang)); min-height:calc(var(--board-piece-height) + var(--hand-count-overhang)); padding:0; margin:0; }
 .integrated-app .boards .integrated-panel .integrated-controls { flex:none; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); height:60px; min-height:60px; width:var(--control-width,100%); margin-left:var(--control-offset,0); padding:1px 0 0; gap:3px; }
 .integrated-app .boards .integrated-panel .integrated-controls button { grid-row:1; min-height:44px; height:44px; min-width:0; padding:3px; font-size:13px; border:1px solid var(--line); border-radius:6px; background:var(--paper-2); }
 .integrated-app .boards .integrated-panel .integrated-controls .replay-status { grid-row:2; grid-column:1/-1; justify-self:end; align-self:start; height:12px; line-height:12px; max-width:none; font-size:10px; }
@@ -1087,11 +1087,18 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 }
 @media(max-width:767px) and (max-height:600px) {
  .integrated-app .notice { padding-block:0; margin-bottom:1px; }
- .integrated-panel .workspace-body { grid-template-rows:minmax(0,1fr) 80px; }
+ .integrated-panel .workspace-body { grid-template-rows:minmax(0,1fr) 78px; }
+ .integrated-panel .inline-record-header { height:20px; min-height:20px; }
  .integrated-app .integrated-panel .board-player { height:16px; min-height:16px; line-height:14px; }
  .integrated-app .board-player strong { font-size:10px; }
  .integrated-panel .board-coordinates { --axis-size:8px; }
  .integrated-panel .file-labels,.integrated-panel .rank-labels { font-size:8px; }
+ .integrated-panel .hand { --board-piece-width:12px; --board-piece-height:14px; --board-piece-font-size:10px; --hand-count-overhang:0px; --hand-count-font-size:8px; }
+ .integrated-panel .hand-pieces { gap:2px; }
+ .integrated-panel .hand-piece-item { display:flex; flex:0 0 auto; width:auto; height:14px; padding:0; align-items:center; }
+ .integrated-panel .hand-piece { width:12px; flex:none; }
+ .integrated-panel .hand-count-row { position:static; flex:none; }
+ .integrated-panel .hand-count { min-width:10px; padding:0 1px; height:10px; }
 }
 
 .integrated-app .boards .integrated-panel .unified-caption { position:relative; min-height:48px; height:48px; gap:5px; }
