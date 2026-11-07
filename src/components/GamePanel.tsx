@@ -199,8 +199,8 @@ export function GamePanel(props: Props) {
 
   const copyShare = async () => {
     const url = shareUrl({ game: props.summary.id, ply: safePly, view: props.summary.live ? 'live' : 'archive', boards: props.boardCount, orientation: flipped ? 'white' : 'black' });
-    try { await navigator.clipboard.writeText(url); setShareMessage('URLをコピーしました'); }
-    catch { setShareMessage(url); }
+    try { await navigator.clipboard.writeText(url); return 'URLをコピーしました'; }
+    catch { return url; }
   };
 
   const snapshot = (): PanelSnapshot => ({ summary:props.summary, pinned:props.pinned, ply:safePly, flipped, enabled:analysisEnabled, followingLatest, speed, game });
@@ -249,7 +249,7 @@ export function GamePanel(props: Props) {
   </div>;
   return <BoardSurface label={props.summary.black+' 対 '+props.summary.white} onKeyDown={onKeyDown}
     caption={gameMenu}
-    captionActions={<><button className="context-share" onClick={copyShare}>共有</button>{shareMessage&&<output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}</>}
+    captionActions={!workspace&&<><button className="context-share" onClick={()=>void copyShare().then(setShareMessage)}>共有</button>{shareMessage&&<output className="sr-message share-result" aria-live="polite">{shareMessage}</output>}</>}
     evaluation={board && props.onPrepareAnalysis && <LocalEvaluation board={board} position={enginePosition} enabled={analysisEnabled} onEnabledChange={changeAnalysisEnabled} onPrepare={props.onPrepareAnalysis} suspended={props.suspended} detailsTarget={detailsTarget} onDetails={() => openDetails('analysis')} />}
     board={board ? <WatchBoard board={board} revision={props.summary.id+'|'+safePly+'|'+enginePosition} flipped={flipped} players={players} lastMove={safePly ? game?.moveList[safePly-1] : undefined} disabled={!props.onStudy||Boolean(studyUnavailable)||Boolean(props.suspended)} onNotice={setWatchNotice} onMove={async(move,isCurrent)=>{if(!game||!props.onStudy)return false;return props.onStudy(game,safePly,snapshot(),move,isCurrent);}}/> : <div className="loading" role="status">棋譜を読み込んでいます…</div>}
     status={!followingLatest ? <><span>{watchNotice||(newMoves ? '本譜に新しい指し手があります' : '過去の局面を表示中')}</span><button onClick={() => moveTo(maxPly,true)}>最新</button></> : <span>{watchNotice||'最新手に追従中'}</span>}
@@ -260,7 +260,7 @@ export function GamePanel(props: Props) {
       if(saved?.game.id===game.id&&ply===saved.origin)return saved.nodes.root.children.map(id=><button className="record-branch" key={id} onClick={()=>props.onResumeStudy?.(id)}>↳ {formatMove(saved.nodes[id].move!)} · 保存した変化</button>);
       if(!saved&&ply===0&&props.onResumeStudy&&savedStudyExists(game.id))return <button className="record-branch" onClick={()=>props.onResumeStudy?.()}>↳ 保存した変化を開く</button>;
       return null;
-    }} embedded owner={recordOwner} game={game} ply={safePly} active={!props.suspended} onPrepare={props.onPrepareAnalysis} onBusyChange={busy=>props.onDialogChange?.(props.summary.id,busy)} onPick={(next,record)=>{if(record.id===game.id&&positionKey(record.initial)===positionKey(game.initial)&&record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw))moveTo(next);}}/>}
+    }} embedded onShare={copyShare} owner={recordOwner} game={game} ply={safePly} active={!props.suspended} onPrepare={props.onPrepareAnalysis} onBusyChange={busy=>props.onDialogChange?.(props.summary.id,busy)} onPick={(next,record)=>{if(record.id===game.id&&positionKey(record.initial)===positionKey(game.initial)&&record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw))moveTo(next);}}/>}
     modal={<DetailPanel open={dialogOpen} tab={detailTab} onHeaderTarget={setHeaderTarget} onClose={() => closeDetails()}>
       <div className="record-pane" hidden={detailTab !== 'record'}>{!workspace && game && <RecordAnalysisPanel recordSelector={<div className="record-kind" role="group" aria-label="棋譜の種類"><button aria-pressed="true">本譜</button><button disabled title="盤面の駒を動かすと変化を作成できます">変化</button></div>} headerTarget={headerTarget} owner={recordOwner} game={game} ply={safePly} active={dialogOpen && detailTab === 'record' && !props.suspended} onPrepare={props.onPrepareAnalysis} onPick={(next,record) => { if(record.id===game.id && positionKey(record.initial)===positionKey(game.initial) && record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw)) { moveTo(next); closeDetails(false); } }} />}</div>
       <div hidden={detailTab !== 'analysis'} ref={setDetailsTarget} className="unified-analysis" />

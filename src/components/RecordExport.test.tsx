@@ -9,12 +9,12 @@ it('copies the full source by default and the selected current variation as CSA'
  const writeText=vi.fn().mockResolvedValue(undefined);
  vi.stubGlobal('navigator',{clipboard:{writeText}});
  render(<RecordExport game={game} variation={variationRecord(game,game.moveList.slice(0,1))}/>);
- fireEvent.click(screen.getByText('棋譜コピー'));
+ fireEvent.click(screen.getByText('コピー'));
  await waitFor(()=>expect(screen.getByText('棋譜をコピーしました')).toBeInTheDocument());
  expect(writeText.mock.calls[0][0]).toContain('3 投了');
  fireEvent.change(screen.getByLabelText('出力する棋譜'),{target:{value:'variation'}});
  fireEvent.change(screen.getByLabelText('棋譜の出力形式'),{target:{value:'csa'}});
- fireEvent.click(screen.getByText('棋譜コピー'));
+ fireEvent.click(screen.getByText('コピー'));
  await waitFor(()=>expect(writeText).toHaveBeenCalledTimes(2));
  expect(writeText.mock.calls[1][0]).toContain('+7776FU');
  expect(writeText.mock.calls[1][0]).not.toContain('-3334FU');
@@ -26,10 +26,18 @@ it('reports clipboard denial and downloads a UTF-8 record using a safe filename'
  let filename='';
  vi.spyOn(HTMLAnchorElement.prototype,'click').mockImplementation(function(this:HTMLAnchorElement){filename=this.download;});
  render(<RecordExport game={game}/>);
- fireEvent.click(screen.getByText('棋譜コピー'));
+ fireEvent.click(screen.getByText('コピー'));
  await waitFor(()=>expect(screen.getByText(/コピーできませんでした/)).toBeInTheDocument());
- fireEvent.click(screen.getByText('棋譜DL'));
+ fireEvent.click(screen.getByText('DL'));
  expect(create.mock.calls[0][0]).toBeInstanceOf(Blob);
  expect(filename).toMatch(/_A_vs_B\.kifu$/);
  expect(document.querySelector('a[download]')).toBeNull();
+});
+it('keeps format copy download share in order and reports the source URL action',async()=>{
+ const onShare=vi.fn().mockResolvedValue('元対局のURLをコピーしました。変化は含みません。');
+ render(<RecordExport game={game} onShare={onShare}/>);
+ expect(screen.getAllByRole('button').map(button=>button.textContent)).toEqual(['コピー','DL','共有']);
+ fireEvent.click(screen.getByRole('button',{name:'共有'}));
+ await waitFor(()=>expect(screen.getByText('元対局のURLをコピーしました。変化は含みません。')).toBeInTheDocument());
+ expect(onShare).toHaveBeenCalledOnce();
 });

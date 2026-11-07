@@ -13,7 +13,7 @@ import { RecordExport } from './RecordExport';
 import { createPortal } from 'react-dom';
 import { useWorkspace } from './WorkspaceContext';
 
-export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,isVariation=false,recordSelector,recordFooter,headerTarget,embedded=false,onBusyChange,moveExtras}:{game:ParsedGame;owner:string;active:boolean;onPrepare?:(signal?:AbortSignal)=>Promise<boolean>;ply?:number;onPick?:(ply:number,game:ParsedGame)=>void;isVariation?:boolean;recordSelector?:ReactNode;recordFooter?:ReactNode;headerTarget?:HTMLDivElement|null;embedded?:boolean;onBusyChange?:(busy:boolean)=>void;moveExtras?:(ply:number)=>ReactNode}) {
+export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,isVariation=false,recordSelector,recordFooter,headerTarget,embedded=false,onBusyChange,moveExtras,onShare}:{game:ParsedGame;owner:string;active:boolean;onPrepare?:(signal?:AbortSignal)=>Promise<boolean>;ply?:number;onPick?:(ply:number,game:ParsedGame)=>void;isVariation?:boolean;recordSelector?:ReactNode;recordFooter?:ReactNode;headerTarget?:HTMLDivElement|null;embedded?:boolean;onBusyChange?:(busy:boolean)=>void;moveExtras?:(ply:number)=>ReactNode;onShare?:()=>Promise<string>}) {
   const workspace=useWorkspace();
   const foreground=!embedded||Boolean(workspace?.selected);
   const [controller]=useState(()=>new RecordAnalysis());
@@ -71,13 +71,14 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
   if(embedded)return <section className="record-analysis embedded-record" aria-label="全棋譜解析">
     {foreground&&workspace?.controlsTarget&&createPortal(analysisControls,workspace.controlsTarget)}
     <div className="inline-record-header"><strong>{isVariation?'変化':'棋譜'}</strong><span>{selected} / {snapshot.moveList.length}手</span></div>
+    <RecordExport game={snapshot} isVariation={isVariation} onShare={onShare}/>
     <div className="inline-record-scroll">
       {changed&&<p className="record-analysis-note">新しい棋譜・変化があります。<button onClick={()=>{controller.clear();clearRecordRecovery(owner);}}>最新の棋譜を表示</button></p>}
       {state.game&&<><p role="status" aria-label="全棋譜解析の状態">{phases[state.phase]} · {state.results.length} / {total}局面</p><progress aria-label="全棋譜解析の進捗" value={state.results.length} max={total}/>{state.message&&<p role="alert">{state.message}</p>}
         <svg className="record-score-chart" viewBox="0 0 600 130" role="img" aria-label="先手基準の評価値推移。勝率ではありません。"><line x1="10" y1="65" x2="590" y2="65" stroke="currentColor" opacity=".3"/><polyline fill="none" stroke="var(--accent)" strokeWidth="2" points={state.results.map((entry,ply)=>entry.score?`${10+580*ply/Math.max(1,total-1)},${65-Math.max(-3000,Math.min(3000,entry.score.kind==='mate'?Math.sign(entry.score.value)*3000:entry.score.value))/3000*50}`:'').join(' ')}/></svg></>}
       <MoveList moveExtras={changed?undefined:moveExtras} game={snapshot} ply={selected} active={active} onPick={next=>{setSelected(next);onPick?.(next,snapshot);}} scores={state.game?state.results.map(entry=>entry.score):undefined}/>
       {result&&<details className="inline-record-pv"><summary>この手の解析結果</summary><ol>{result.candidates.map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{validatedPv(board,candidate.pv,12).labels.join(' → ')||'読み筋なし'}</p></li>)}</ol></details>}
-      <details className="record-actions"><summary>棋譜の操作</summary><RecordExport game={snapshot} isVariation={isVariation}/>{recordSelector}{recordFooter}<p>1局面ずつ端末で解析します。目安は残り約{remaining}分＋準備時間。CPU・電池を使用します。</p>{state.game&&<button disabled={busy||!onPrepare} onClick={()=>void start(false,undefined)}>最初から解析</button>}</details>
+      <details className="record-actions"><summary>棋譜の操作</summary>{recordSelector}{recordFooter}<p>1局面ずつ端末で解析します。目安は残り約{remaining}分＋準備時間。CPU・電池を使用します。</p>{state.game&&<button disabled={busy||!onPrepare} onClick={()=>void start(false,undefined)}>最初から解析</button>}</details>
     </div>
   </section>;
   return <section className="record-analysis" aria-label="全棋譜解析">

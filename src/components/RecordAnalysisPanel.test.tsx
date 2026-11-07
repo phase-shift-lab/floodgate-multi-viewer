@@ -50,7 +50,7 @@ it('keeps list, copy and navigation on the frozen record when new moves arrive, 
  await act(async()=>{update({phase:'done',score:{kind:'cp',value:40,depth:8}});});
  const latest=parseCsa(game.sourceText+'\n+2726FU');view.rerender(<RecordAnalysisPanel {...props} game={latest}/>);
  expect(screen.queryByRole('button',{name:/^3\./})).toBeNull();
- await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'棋譜コピー'}));});
+ await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'コピー'}));});
  expect(writeText.mock.calls[0][0]).not.toContain('３六歩');expect(writeText.mock.calls[0][0]).not.toContain('２六歩');
  fireEvent.click(screen.getByRole('button',{name:/^1\./}));fireEvent.click(screen.getByText('盤面に表示'));
  expect(onPick).toHaveBeenCalledWith(1,expect.objectContaining({moveList:game.moveList}));
