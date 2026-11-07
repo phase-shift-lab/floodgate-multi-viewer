@@ -41,6 +41,28 @@ it('opens as a score sheet without starting analysis and navigates the selected 
  fireEvent.click(screen.getByRole('button',{name:/^1\./}));expect(onPick).not.toHaveBeenCalled();
  expect(screen.getByRole('grid',{name:'将棋盤 1手目'})).toBeInTheDocument();fireEvent.click(screen.getByText('盤面に表示'));expect(onPick).toHaveBeenCalledWith(1,game);
 });
+it('embedded record stays on the board move through mate results and follows subsequent navigation',async()=>{
+ const target=document.createElement('div');document.body.append(target);const onPick=vi.fn();
+ const panel=(ply:number,active=true)=><WorkspaceContext.Provider value={{layout:'auto',selected:true,controlsTarget:target}}><RecordAnalysisPanel embedded game={game} owner="mate-selection" active={active} ply={ply} onPrepare={async()=>true} onPick={onPick}/></WorkspaceContext.Provider>;
+ const view=render(panel(2));
+ await act(async()=>{fireEvent.click(target.querySelector('button')!);});
+ const scroller=()=>view.container.querySelector<HTMLElement>('.inline-record-scroll')!;
+ scroller().scrollTop=175;fireEvent.scroll(scroller());
+ expect(screen.getByRole('button',{name:/^2\./})).toHaveAttribute('aria-current','step');
+ for(const value of [1,0,0]) {
+  await act(async()=>{update({phase:'done',score:{kind:'mate',value,depth:1}});});
+  expect(screen.getByRole('button',{name:/^2\./})).toHaveAttribute('aria-current','step');
+  expect(scroller().scrollTop).toBe(175);
+ }
+ expect(onPick).not.toHaveBeenCalled();
+ view.rerender(panel(2,false));expect(view.container.querySelector('.inline-record-scroll')).toBeNull();
+ view.rerender(panel(2));
+ await act(async()=>{await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));});
+ expect(scroller().scrollTop).toBe(175);
+ view.rerender(panel(1));expect(screen.getByRole('button',{name:/^1\./})).toHaveAttribute('aria-current','step');
+ fireEvent.click(screen.getByRole('button',{name:/^0\./}));expect(onPick).toHaveBeenCalledWith(0,expect.objectContaining({moveList:game.moveList}));
+ view.unmount();target.remove();
+});
 it('keeps list, copy and navigation on the frozen record when new moves arrive, and refreshes explicitly',async()=>{
  const writeText=vi.fn().mockResolvedValue(undefined),onPick=vi.fn();
  vi.stubGlobal('navigator',{clipboard:{writeText}});

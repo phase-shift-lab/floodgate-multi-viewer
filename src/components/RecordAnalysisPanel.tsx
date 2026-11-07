@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useMemo, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { boardAt, formatMoveInGame } from '../domain/csa';
 import { scoreLabel } from '../domain/localEvaluation';
 import { validatedPv } from '../domain/studyRules';
@@ -20,18 +20,20 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
   const state=useSyncExternalStore(controller.subscribe,controller.getState);
   const [seconds,setSeconds]=useState<RecordSeconds>(()=>peekRecordRecovery(owner)?.seconds??1);
   const [selection,setSelection]=useState<{ply:number;origin:number}>();
+  const scrollPositionRef=useRef<number|undefined>(undefined);
   const setSelected=(next:number)=>setSelection({ply:next,origin:ply});
   const [resultView,setResultView]=useState<'list'|'position'>('list');
   const [recovered]=useState(()=>peekRecordRecovery(owner));
   const snapshot=state.game??game;
-  const selected=Math.max(0,Math.min(selection&&(state.game||selection.origin===ply)?selection.ply:ply,snapshot.moveList.length));
+  const requestedPly=!embedded&&selection&&(state.game||selection.origin===ply)?selection.ply:ply;
+  const selected=Math.max(0,Math.min(requestedPly,snapshot.moveList.length));
   const board=useMemo(()=>boardAt(snapshot,selected),[snapshot,selected]);
   const result=state.results[selected];
   const busy=state.phase==='preparing'||state.phase==='running';
   const start=async(resume=false,restored?:typeof recovered)=>{
     const target=resume&&state.game?state.game:restored?.game??game;
     const duration=resume?state.seconds:restored?.seconds??seconds;
-    if(!resume)setSelected(0);
+    if(!resume&&!embedded)setSelected(0);
     // An explicit start/retry can clear a previous failure; never retry errors automatically.
     retryAnalysisPreparation();localAnalysis.retry();
     await controller.start(target,duration,async signal=>{
@@ -76,7 +78,7 @@ export function RecordAnalysisPanel({game,owner,active,onPrepare,ply=0,onPick,is
       {changed&&<p className="record-analysis-note">新しい棋譜・変化があります。<button onClick={()=>{controller.clear();clearRecordRecovery(owner);}}>最新の棋譜を表示</button></p>}
       {state.game&&<><p role="status" aria-label="全棋譜解析の状態">{phases[state.phase]} · {state.results.length} / {total}局面</p><progress aria-label="全棋譜解析の進捗" value={state.results.length} max={total}/>{state.message&&<p role="alert">{state.message}</p>}
         <svg className="record-score-chart" viewBox="0 0 600 130" role="img" aria-label="先手基準の評価値推移。勝率ではありません。"><line x1="10" y1="65" x2="590" y2="65" stroke="currentColor" opacity=".3"/><polyline fill="none" stroke="var(--accent)" strokeWidth="2" points={state.results.map((entry,ply)=>entry.score?`${10+580*ply/Math.max(1,total-1)},${65-Math.max(-3000,Math.min(3000,entry.score.kind==='mate'?Math.sign(entry.score.value)*3000:entry.score.value))/3000*50}`:'').join(' ')}/></svg></>}
-      <MoveList moveExtras={changed?undefined:moveExtras} game={snapshot} ply={selected} active={active} onPick={next=>{setSelected(next);onPick?.(next,snapshot);}} scores={state.game?state.results.map(entry=>entry.score):undefined}/>
+      <MoveList scrollPositionRef={scrollPositionRef} moveExtras={changed?undefined:moveExtras} game={snapshot} ply={selected} active={active} onPick={next=>onPick?.(next,snapshot)} scores={state.game?state.results.map(entry=>entry.score):undefined}/>
       {result&&<details className="inline-record-pv"><summary>この手の解析結果</summary><ol>{result.candidates.map(candidate=><li key={candidate.rank}><strong>第{candidate.rank}候補 {scoreLabel(candidate.score)}</strong><p>{validatedPv(board,candidate.pv,12).labels.join(' → ')||'読み筋なし'}</p></li>)}</ol></details>}
       {(recordSelector||recordFooter||state.game)&&<div className="record-actions">{recordSelector}{recordFooter}{state.game&&<button disabled={busy||!onPrepare} onClick={()=>void start(false,undefined)}>最初から解析</button>}</div>}
     </div>

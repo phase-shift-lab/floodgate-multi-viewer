@@ -1006,7 +1006,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .workspace-record { min-width:0; min-height:0; overflow:hidden; border-top:1px solid var(--line); }
 .embedded-record { display:flex; flex-direction:column; height:100%; min-height:0; font-size:12px; padding:0; }
 .inline-record-header { display:flex; justify-content:space-between; padding:2px 6px; font-size:10px; min-height:22px; height:22px; flex:none; }
-.inline-record-scroll { flex:1; min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+.inline-record-scroll { flex:1; min-height:0; overflow:auto; overflow-anchor:none; overscroll-behavior:contain; scrollbar-width:thin; }
 .embedded-record .move-list { padding:0 5px; margin:0; max-height:none; overflow:visible; border:0; }
 .embedded-record .move-list button { display:flex; width:100%; text-align:left; min-height:32px; font-size:12px; padding:5px; gap:3px; align-items:center; }
 .embedded-record .move-list small { font-size:10px; }

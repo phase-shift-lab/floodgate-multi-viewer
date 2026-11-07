@@ -15,7 +15,9 @@ import { addRecent, getStatsSessionId, loadArchiveFilters, loadFavorites, loadRe
 import { compareGames, replaceFinishedSlots, selectFeaturedGames } from './domain/selection';
 import { BOARD_COUNTS, type BoardCount, type GameSummary, type Move, type ParsedGame, type ViewerSettings } from './domain/types';
 
-interface Slot { id: string; pinned: boolean }
+interface Slot { id: string; pinned: boolean; instance:number }
+let slotInstance=0;
+const createSlot=(id:string,pinned=false):Slot=>({id,pinned,instance:++slotInstance});
 
 export default function App() {
   const [study,setStudy] = useState<StudySession>();
@@ -60,7 +62,7 @@ export default function App() {
   const [settingsRequest,setSettingsRequest]=useState<{index:number;serial:number}>();
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [games, setGames] = useState<GameSummary[]>(() => analysisRecovery?.slots.map((slot) => slot.summary) ?? []);
-  const [slots, setSlots] = useState<Slot[]>(() => analysisRecovery?.slots.map((slot) => ({ id: slot.summary.id, pinned: slot.pinned })) ?? []);
+  const [slots, setSlots] = useState<Slot[]>(() => analysisRecovery?.slots.map((slot) => createSlot(slot.summary.id,slot.pinned)) ?? []);
   const analysisSnapshots = useRef(new Map<number, PanelSnapshot>(analysisRecovery?.slots.map((slot,index) => [index,slot])));
   const [completedGames]=useState(()=>new CompletedGames());
   const [favorites, setFavorites] = useState(loadFavorites);
@@ -125,7 +127,7 @@ export default function App() {
           if (!current.length) {
             const shared=result.games.find(game=>game.id===share.game);
             const featured = selectFeaturedGames(result.games.filter(game=>game.id!==shared?.id&&!initialExcluded.has(game.id)), settings.boardCount-(shared?1:0));
-            return [...(shared?[shared]:[]),...featured].map(game=>({id:game.id,pinned:false}));
+            return [...(shared?[shared]:[]),...featured].map(game=>createSlot(game.id));
           }
           if (!settings.autoSwitchFinished) return current;
           const protectedIds=new Set([...dialogGames.current,...manuallySelectedPastGames.current,...(share.game?[share.game]:[]),...[...analysisSnapshots.current.values()].filter(panel=>!panel.followingLatest).map(panel=>panel.summary.id)]);
@@ -152,16 +154,21 @@ export default function App() {
   }, [settings]);
 
   const setBoardCount = (count: BoardCount) => {
+    const selectedIndex=expanded??selectedPanel;
     preferredBoardCount.current=count;
     setMenuOpen(false);
     setSettings((value) => ({ ...value, boardCount: count }));
     setExpanded(undefined);
     setSlots((current) => {
-      const pinned = current.filter((slot) => slot.pinned).slice(0, count);
-      const exclude = new Set(pinned.map((slot) => slot.id));
-      const recommended = selectFeaturedGames(games.filter((game) => !exclude.has(game.id)), count - pinned.length);
-      return [...pinned, ...recommended.map((game) => ({ id: game.id, pinned: false }))];
+      const selected=current[selectedIndex]??current[0];
+      const others=current.filter(slot=>slot!==selected);
+      const kept=[...(selected?[selected]:[]),...others.filter(slot=>slot.pinned),...others.filter(slot=>!slot.pinned)].slice(0,count);
+      const exclude = new Set(kept.map((slot) => slot.id));
+      const recommended = selectFeaturedGames(games.filter((game) => !exclude.has(game.id)), count - kept.length);
+      return [...kept, ...recommended.map((game) => createSlot(game.id))];
     });
+    activePanel.current=0;
+    setSelectedPanel(0);
   };
 
   const protectSelectedPastGame = (id:string) => {
@@ -169,7 +176,7 @@ export default function App() {
   };
   const openArchivedGame = (id:string) => {
     protectSelectedPastGame(id);
-    setSlots(current=>[{id,pinned:false},...current.slice(1)]);
+    setSlots(current=>[createSlot(id),...current.slice(1)]);
     setExpanded(undefined);
     activePanel.current=0;
     setSelectedPanel(0);
@@ -319,7 +326,7 @@ export default function App() {
       persistStudy(saved); studyingRef.current=true; setStudying(true); localAnalysis.stopAll(); setStudy(saved);
       const index=preferredIndex !== undefined && slots[preferredIndex]?.id === saved.game.id ? preferredIndex : slots.findIndex(slot => slot.id === saved.game.id);
       if (index < 0) {
-        setSlots(current => [{id:saved.game.id,pinned:true},...current.slice(1)]);
+        setSlots(current => [createSlot(saved.game.id,true),...current.slice(1)]);
         setGames(current => [saved.game,...current.filter(game => game.id !== saved.game.id)]);
       }
       setExpanded(settings.boardCount === 1 && expanded === undefined ? undefined : Math.max(0,index)); setView('live');
@@ -350,7 +357,7 @@ export default function App() {
     analysisSnapshots.current=new Map(watch.slots.map((slot,i) => [i,slot]));
     skipSwitch.current=true;
     setSettings(watch.settings); setView(watch.view); setExpanded(watch.expanded);
-    setSlots(watch.slots.map(slot => ({id:slot.summary.id,pinned:slot.pinned})));
+    setSlots(watch.slots.map(slot => createSlot(slot.summary.id,slot.pinned)));
     setGames(current => [...watch.slots.map(slot => slot.summary),...current.filter(game => !watch.slots.some(slot => slot.summary.id === game.id))]);
     returnFocus.current=watch.expanded !== undefined ? 0 : Math.max(0,index);
     setRestoredWatch(watch); setPanelRevision(value => value+1); studyingRef.current=false; setStudying(false);
@@ -437,8 +444,8 @@ export default function App() {
               if (!summary) return null;
               const realIndex = expanded !== undefined ? expanded : index;
               const restoredPanel = recovery?.slots[realIndex]?.summary.id === summary.id ? recovery.slots[realIndex] : undefined;
-              return <WorkspaceContext.Provider key={panelRevision+':'+realIndex+':'+slot.id} value={{layout:workspaceLayout,selected:studying||realIndex===(expanded??Math.min(selectedPanel,visibleSlots.length-1)),controlsTarget:recordControlsTarget}}><GamePanel onGameFinished={recordFinished} settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} savedStudy={study?.game.id===summary.id?study:undefined} onResumeStudy={hasSavedStudy ? nodeId => void resumeStudy(false,realIndex,nodeId) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
-                key={`${panelRevision}:${restoredWatch?.at ?? 0}:${realIndex}:${slot.id}`} summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => {protectSelectedPastGame(id);setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value));}} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} /></WorkspaceContext.Provider>;
+              return <WorkspaceContext.Provider key={panelRevision+':'+(restoredWatch?.at??0)+':'+slot.instance+':'+slot.id} value={{layout:workspaceLayout,selected:studying||realIndex===(expanded??Math.min(selectedPanel,visibleSlots.length-1)),controlsTarget:recordControlsTarget}}><GamePanel onGameFinished={recordFinished} settingsRequest={settingsRequest?.index === realIndex ? settingsRequest.serial : undefined} savedStudy={study?.game.id===summary.id?study:undefined} onResumeStudy={hasSavedStudy ? nodeId => void resumeStudy(false,realIndex,nodeId) : undefined} study={studying ? study : undefined} onStudyChange={setStudy} onReturnStudy={returnFromStudy} onSound={toggleSound} onDialogChange={changeDialog} suspended={studying || validating || autoRestoring} sound={sound} onStudy={(game,ply,snapshot,move,isCurrent) => startStudy(game,ply,snapshot,realIndex,move,isCurrent)} initialGame={restoredPanel?.game} initialFollowingLatest={restoredPanel?.followingLatest}
+                summary={summary} stats={viewerStats?.games[summary.id]} games={games} defaultSpeed={restoredPanel?.speed ?? settings.playbackSeconds} initialPly={restoredPanel?.ply ?? (realIndex === 0 ? share.ply : undefined)} defaultFlipped={restoredPanel?.flipped ?? settings.orientation === 'white'} initialAnalysisEnabled={restoredPanel?.enabled} onAnalysisSnapshot={(snapshot) => { analysisSnapshots.current.set(realIndex, snapshot); }} onPrepareAnalysis={(signal) => preparePanelAnalysis(realIndex,signal)} pinned={slot.pinned} favoriteNames={favorites} onFavorite={toggleFavorite} onViewed={recordViewed} onSelect={(id) => {protectSelectedPastGame(id);setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, id } : value));}} onPin={() => setSlots((current) => current.map((value, position) => position === realIndex ? { ...value, pinned: !value.pinned } : value))} onSpeedChange={(seconds) => setSettings((value) => ({ ...value, playbackSeconds: seconds }))} boardCount={settings.boardCount} fixture={status === 'fixture'} onOrientationChange={(flipped) => setSettings((value) => ({ ...value, orientation: flipped ? 'white' : 'black' }))} onExpand={() => setExpanded((value) => value === realIndex ? undefined : realIndex)} expanded={expanded === realIndex} /></WorkspaceContext.Provider>;
             })}
           </div>}
         </section>}
