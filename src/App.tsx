@@ -41,11 +41,12 @@ export default function App() {
   },[panelRevision]);
   const recovery = restoredWatch ?? analysisRecovery;
   const share = useMemo(() => readShareState(), []);
+  const [savedSettings] = useState(loadSettings);
+  const preferredBoardCount = useRef(savedSettings.boardCount);
   const [settings, setSettings] = useState<ViewerSettings>(() => {
-    const saved = analysisRecovery?.settings ?? loadSettings();
+    const saved = analysisRecovery?.settings ?? savedSettings;
     return {
       ...saved,
-      boardCount: matchMedia('(max-width: 767px)').matches && !analysisRecovery ? 1 : saved.boardCount,
       ...(!analysisRecovery && share.boards ? { boardCount: share.boards } : {}),
       ...(!analysisRecovery && share.orientation ? { orientation: share.orientation } : {}),
     };
@@ -67,6 +68,7 @@ export default function App() {
   const [view, setView] = useState<'live' | 'archive'>(analysisRecovery?.view ?? share.view ?? 'live');
   const [expanded, setExpanded] = useState<number | undefined>(analysisRecovery?.expanded);
   const [historyDate, setHistoryDate] = useState('');
+  const [archiveSearch,setArchiveSearch] = useState<{date:string;fixture:boolean;ids:string[]}>();
   const [historyLoading, setHistoryLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState('all');
@@ -135,12 +137,13 @@ export default function App() {
   }, [settings.autoSwitchFinished, settings.boardCount, share.game,completedGames]);
 
   useEffect(() => {
-    saveSettings(settings);
+    saveSettings({...settings,boardCount:preferredBoardCount.current});
     const root = document.documentElement;
     root.dataset.theme = settings.theme;
   }, [settings]);
 
   const setBoardCount = (count: BoardCount) => {
+    preferredBoardCount.current=count;
     setMenuOpen(false);
     setSettings((value) => ({ ...value, boardCount: count }));
     setExpanded(undefined);
@@ -170,6 +173,7 @@ export default function App() {
     setHistoryLoading(true);
     try {
       const result = await loadDay(historyDate, controller.signal);
+      setArchiveSearch({date:historyDate,fixture:result.fixture,ids:result.games.map(game=>game.id)});
       setGames((current) => [...result.games, ...current.filter((game) => !result.games.some((item) => item.id === game.id))]);
       setStatus(result.fixture ? 'fixture' : 'ready');
     } finally { setHistoryLoading(false); }
@@ -185,11 +189,12 @@ export default function App() {
       const ratingMatch = !hasRateBounds || (rates.length > 0 && rates.some((rate) => rate >= min && rate <= max));
       return (!term || game.black.toLowerCase().includes(term) || game.white.toLowerCase().includes(term))
         && (group === 'all' || game.group === group)
-        && (resultFilter === 'all' || (resultFilter === 'live' ? game.live : !game.live && (resultFilter === 'finished' || game.result?.includes(resultFilter))))
+        && (!archiveSearch || (archiveSearch.fixture ? archiveSearch.ids.includes(game.id) : game.startedAt.slice(0,10)===archiveSearch.date))
+        && (resultFilter === 'all' || (resultFilter === 'live' ? game.live : !game.live && (resultFilter === 'finished' || game.result===resultFilter+'勝ち')))
         && (!favoriteOnly || favorites.includes(game.black) || favorites.includes(game.white))
         && ratingMatch;
     }).sort((a, b) => sort === 'high' ? compareGames(a, b) : sort === 'low' ? compareGames(b, a) : b.startedAt.localeCompare(a.startedAt));
-  }, [games, query, group, resultFilter, minRate, maxRate, sort, favoriteOnly, favorites]);
+  }, [games, query, group, resultFilter, minRate, maxRate, sort, favoriteOnly, favorites, archiveSearch]);
 
   const visibleSlots = expanded !== undefined ? slots.slice(expanded, expanded + 1) : slots.slice(0, settings.boardCount);
   const visibleGameIdsKey = visibleSlots.map((slot) => slot.id).join('\n');
@@ -386,6 +391,8 @@ export default function App() {
 
         {view === 'archive' && <section className="archive-search" aria-labelledby="archive-title">
           <div className="section-title"><div><span className="eyebrow">ARCHIVE</span><h2 id="archive-title">過去対局を探す</h2></div><span>{filteredGames.length}局</span></div>
+          <button className="archive-white-win" aria-pressed={resultFilter==='後手'} onClick={()=>setResultFilter('後手')}>後手勝ちを探す</button>
+          <p className="archive-scope" role="status">検索対象：{(archiveSearch?.fixture??status==='fixture')?'同梱データ（指定日の実データではありません）':archiveSearch?archiveSearch.date+'の取得済み対局':'この画面に取得済みの対局'}。勝敗不明の対局は勝ち側の検索に含めません。</p>
           <div className="filters">
             <label>AI名<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="名前で絞り込み" /></label>
             <label>日付<input type="date" value={historyDate} onChange={(event) => setHistoryDate(event.target.value)} /></label>

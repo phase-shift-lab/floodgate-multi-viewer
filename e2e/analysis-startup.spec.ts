@@ -62,7 +62,7 @@ test('study moves made during preparation survive reload and resume analysis',as
   };
  });
  await page.goto(base);const panel=page.locator('.unified-panel');
- await tools(panel);await panel.locator('.board-tools-content').getByRole('button',{name:'最初',exact:true}).click();
+ await tools(panel);await panel.locator('.integrated-controls').getByRole('button',{name:'最初',exact:true}).click();
  const study=await startStudy(page,panel);
  await study.getByRole('button',{name:'読み筋と他の候補を開く'}).click();
  await study.getByRole('button',{name:'端末で解析 OFF',exact:true}).click();

@@ -4,6 +4,8 @@ export const base='/floodgate-multi-viewer/';
 export async function tools(panel: Locator) {
   const button=panel.getByRole('button',{name:'対局を選ぶ',exact:true});
   if (await button.getAttribute('aria-expanded') !== 'true') await button.click();
+  const extra=panel.locator('.menu-secondary');
+  if(await extra.count()&&!await extra.evaluate(el=>(el as HTMLDetailsElement).open))await extra.locator('summary').click();
 }
 export async function count(page: Page, number: 1|2|3|4) {
   await page.getByLabel('表示局数',{exact:true}).selectOption(String(number));

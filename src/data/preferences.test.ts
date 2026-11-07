@@ -6,7 +6,11 @@ describe('preferences', () => {
     saveSettings({...loadSettings(),boardCount:3});expect(loadSettings().boardCount).toBe(3);
     expect(readShareState(new URL(shareUrl({boards:3})).search).boards).toBe(3);
     expect(readShareState('?boards=5').boards).toBeUndefined();
-    localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:5}));expect(loadSettings().boardCount).toBe(2);
+    localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:5}));expect(loadSettings().boardCount).toBe(3);
+  });
+  it('PCの未保存時は3局、既存の有効な2局設定は維持する',()=>{
+    expect(loadSettings().boardCount).toBe(3);
+    saveSettings({...loadSettings(),boardCount:2});expect(loadSettings().boardCount).toBe(2);
   });
   beforeEach(() => localStorage.clear());
 

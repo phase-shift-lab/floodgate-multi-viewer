@@ -224,14 +224,15 @@ export function GamePanel(props: Props) {
   const lastSettingsRequest=useRef(props.settingsRequest);
   useEffect(() => { if (props.settingsRequest && props.settingsRequest !== lastSettingsRequest.current) requestSettings(); lastSettingsRequest.current=props.settingsRequest; },[props.settingsRequest]);
   const gameMenu = <ToolsMenu disabled={Boolean(props.study)||props.suspended} label={<span>{props.fixture ? 'FIXTURE' : (game ?? props.summary).live ? '● LIVE' : '終局'} · {props.summary.black} vs {props.summary.white}</span>}>
-      <label>表示する対局<select aria-label="表示する対局" value={props.summary.id} onChange={event => props.onSelect(event.target.value)}>{props.games.map(item => <option key={item.id} value={item.id}>{item.black} vs {item.white}</option>)}</select></label>
-      <button onClick={() => {setFlipped(!flipped);props.onOrientationChange(!flipped);}}>反転</button><button onClick={()=>setPlaying(!playing)}>{playing?'停止':'再生'}</button><button onClick={copyShare}>共有</button>
-      <button aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
-      {props.onResumeStudy && <button onClick={()=>props.onResumeStudy?.()}>前の検討を再開</button>}
-      <button onClick={() => moveTo(0)}>最初</button><button onClick={() => moveTo(maxPly,true)}>最新</button>
-      <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
-      <p>{safePly}手 / {maxPly}手 · {board?.turn === '+' ? '先手番' : '後手番'} · {game?.result ?? (game?.live ? '対局中' : '結果不明')}</p>
-      <p>観戦 {formatPeoplePerDay(props.stats?.viewsToday)} · 同時 {formatPeople(props.stats?.concurrent)}</p>
+      <label className="game-choice-label">対局を選ぶ<select aria-label="表示する対局" value={props.summary.id} onChange={event => props.onSelect(event.target.value)}>{props.games.map(item => <option key={item.id} value={item.id}>{item.black} vs {item.white}</option>)}</select></label>
+      <button className="menu-playback" onClick={()=>setPlaying(!playing)}>{playing?'停止':'再生'}</button>
+      <details className="menu-secondary"><summary>その他の操作</summary><div>
+        <button aria-pressed={props.pinned} onClick={props.onPin}>{props.pinned ? 'ピン解除' : 'ピン留め'}</button>
+        <button onClick={props.onExpand}>{props.expanded ? '一覧へ戻る' : '単局拡大'}</button>
+        {props.onResumeStudy && <button onClick={()=>props.onResumeStudy?.()}>前の検討を再開</button>}
+        <p>{safePly}手 / {maxPly}手 · {board?.turn === '+' ? '先手番' : '後手番'} · {game?.result ?? (game?.live ? '対局中' : '結果不明')}</p>
+        <p>観戦 {formatPeoplePerDay(props.stats?.viewsToday)} · 同時 {formatPeople(props.stats?.concurrent)}</p>
+      </div></details>
     </ToolsMenu>;
   const players:BoardPlayers={
     '+':{name:props.summary.black,rating:game?.blackRate??props.summary.blackRate,favorite:props.favoriteNames.includes(props.summary.black),onFavorite:()=>props.onFavorite(props.summary.black)},

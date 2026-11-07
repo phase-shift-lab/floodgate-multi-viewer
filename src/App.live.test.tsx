@@ -2,10 +2,10 @@ import {act,cleanup,fireEvent,render,screen} from '@testing-library/react';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import App from './App';
 import {fixtureGames,fixtureSummaries} from './data/fixtures';
-import {loadCatalog,loadGame,type GameResult} from './data/client';
+import {loadCatalog,loadDay,loadGame,type GameResult} from './data/client';
 
 vi.mock('./data/client',async importOriginal=>({...await importOriginal<typeof import('./data/client')>(),STATIC_MODE:false,
-  loadCatalog:vi.fn(),loadGame:vi.fn(),heartbeatStats:vi.fn().mockResolvedValue(undefined),recordPageView:vi.fn().mockResolvedValue(undefined)}));
+  loadCatalog:vi.fn(),loadDay:vi.fn(),loadGame:vi.fn(),heartbeatStats:vi.fn().mockResolvedValue(undefined),recordPageView:vi.fn().mockResolvedValue(undefined)}));
 
 beforeEach(()=>{
   vi.useFakeTimers();localStorage.clear();sessionStorage.clear();
@@ -14,6 +14,36 @@ beforeEach(()=>{
   localStorage.setItem('fgmv:settings:migrated:auto-switch-finished-default-on','1');
 });
 afterEach(()=>{cleanup();vi.useRealTimers();vi.clearAllMocks();});
+
+it('後手勝ち検索は勝敗不明を除外し、指定日・AI名・レートと組み合わせる',async()=>{
+  const summaries=['後手勝ち','先手勝ち',undefined,'後手勝ち'].map((result,index)=>({...fixtureSummaries[0],id:'archive-'+index,
+    black:index===3?'Other':'Target',white:'White',live:false,result,startedAt:'2026-11-06T12:00:00+09:00',blackRate:index===3?1000:3000,whiteRate:3000}));
+  const old={...summaries[0],id:'old',startedAt:'2026-11-05T12:00:00+09:00'};
+  vi.mocked(loadCatalog).mockResolvedValue({games:[...summaries,old],fixture:false,stale:false,fetchedAt:new Date()});
+  vi.mocked(loadDay).mockResolvedValue({games:summaries,fixture:false,stale:false,fetchedAt:new Date()});
+  vi.mocked(loadGame).mockImplementation(async summary=>({game:{...fixtureGames[0],...summary},fixture:false,stale:false,fetchedAt:new Date()}));
+  await act(async()=>{render(<App/>);});
+  fireEvent.click(screen.getAllByRole('button',{name:'過去対局'})[0]);
+  fireEvent.click(screen.getByRole('button',{name:'後手勝ちを探す'}));
+  const rows=()=>document.querySelectorAll('.archive-list button');
+  expect(rows()).toHaveLength(3);
+  fireEvent.change(screen.getByLabelText('日付'),{target:{value:'2026-11-06'}});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'指定日を取得'}));});
+  expect(rows()).toHaveLength(2);
+  expect(screen.getByText(/検索対象：2026-11-06の取得済み対局/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText('AI名'),{target:{value:'Target'}});
+  fireEvent.change(screen.getByLabelText('レート下限'),{target:{value:'2500'}});
+  expect(rows()).toHaveLength(1);
+  expect(rows()[0]).toHaveTextContent('Target');
+  fireEvent.change(screen.getByLabelText('レート上限'),{target:{value:'2900'}});
+  expect(rows()).toHaveLength(0);
+  vi.mocked(loadDay).mockResolvedValue({games:[summaries[0]],fixture:true,stale:false,fetchedAt:new Date()});
+  fireEvent.change(screen.getByLabelText('レート上限'),{target:{value:''}});
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'指定日を取得'}));});
+  await act(async()=>{await vi.advanceTimersByTimeAsync(30_000);});
+  expect(rows()).toHaveLength(1);
+  expect(screen.getByText(/検索対象：同梱データ（指定日の実データではありません）/)).toBeInTheDocument();
+});
 
 it.each(['following','pinned','past','disabled'])('catalog retains CSA completion and respects %s viewing',async mode=>{
   localStorage.setItem('fgmv:settings:v1',JSON.stringify({boardCount:1,autoSwitchFinished:mode!=='disabled'}));
@@ -28,7 +58,7 @@ it.each(['following','pinned','past','disabled'])('catalog retains CSA completio
   const label=()=>screen.getByRole('button',{name:'対局を選ぶ'});
   expect(label()).toHaveTextContent('LIVE · '+first.black+' vs '+first.white);
   if(mode==='pinned'){
-    fireEvent.click(label());fireEvent.click(screen.getByRole('button',{name:'ピン留め'}));
+    fireEvent.click(label());fireEvent.click(screen.getByText('その他の操作'));fireEvent.click(screen.getByRole('button',{name:'ピン留め'}));
   }
   if(mode==='past')fireEvent.click(screen.getByRole('button',{name:'1手戻る'}));
   ended=true;
