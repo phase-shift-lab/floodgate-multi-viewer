@@ -54,5 +54,5 @@ export async function settings(panel: Locator) {
   const page=panel.page();
   await panel.locator('.player-side').first().click();
   await page.getByRole('button',{name:'表示と設定',exact:true}).click();
-  await page.getByRole('button',{name:'設定を開く',exact:true}).click();
+  await expect(page.locator('#header-menu')).toBeVisible();
 }

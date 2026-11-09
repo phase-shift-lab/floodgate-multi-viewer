@@ -961,7 +961,7 @@ button.hand-piece.selected-piece { background:#a7e9cd; }
 .integrated-app .mobile-menu-toggle { display:block; margin-left:auto; min-height:44px; width:44px; padding:0; flex:none; font-size:20px; }
 .integrated-app .header-menu { display:none; position:absolute; z-index:40; top:100%; right:8px; left:auto; width:min(440px,calc(100vw - 16px)); max-height:calc(100dvh - 64px); overflow:auto; padding:12px; border:1px solid var(--line); border-radius:8px; background:var(--paper); box-shadow:var(--shadow); }
 .integrated-app .header-menu.is-open { display:flex; flex-direction:column; gap:10px; }
-.integrated-app .header-menu .app-settings-toggle { width:auto; min-height:44px; }
+.integrated-app .header-menu .board-settings { padding:8px 0; border-block:1px solid var(--line); }
 .integrated-app .header-menu .header-actions { display:flex; flex-wrap:wrap; justify-content:start; gap:8px; }
 .integrated-app .header-menu .header-summary { display:flex; flex-wrap:wrap; font-size:11px; }
 .integrated-app .mobile-navigation,.integrated-app .mobile-layout { display:none; }

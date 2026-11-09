@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useWorkspace } from './WorkspaceContext';
 import { RecordAnalysisPanel } from './RecordAnalysisPanel';
 import { hasRecordRecovery } from '../engine/recordRecovery';
@@ -244,7 +245,7 @@ export function GamePanel(props: Props) {
     <label>再生速度<select value={SPEEDS.includes(speed) ? speed : 'custom'} onChange={event => { if (event.target.value !== 'custom') { const value=Number(event.target.value); setSpeed(value); props.onSpeedChange(value); } }}>{SPEEDS.map(value => <option key={value} value={value}>{value}秒</option>)}<option value="custom">任意</option></select></label>
     <label>任意秒数<input aria-label="任意再生速度（秒）" type="number" min="0.1" max="60" step="0.1" value={speed} onChange={event => { const value=clampPlaybackSeconds(Number(event.target.value)); setSpeed(value); props.onSpeedChange(value); }} /></label>
     <p>観戦の端末解析は約0.5秒ずつ順番に実行します。解析の切替・ライセンスは「読み筋」にあります。</p>
-    {props.onSound && <button aria-pressed={props.sound} onClick={props.onSound}>駒音 {props.sound ? 'ON' : 'OFF'}</button>}
+    {!workspace && props.onSound && <button aria-pressed={props.sound} onClick={props.onSound}>駒音 {props.sound ? 'ON' : 'OFF'}</button>}
     {game?.evaluationsTrusted && <details><summary>CSA評価値</summary><p>AI間で尺度は同じとは限りません。</p><ul>{game.moveList.filter(move => move.evaluation !== undefined).map(move => <li key={move.index}>{move.index}手: {move.evaluation}</li>)}</ul></details>}
   </div>;
   return <BoardSurface label={props.summary.black+' 対 '+props.summary.white} onKeyDown={onKeyDown}
@@ -261,11 +262,11 @@ export function GamePanel(props: Props) {
       if(!saved&&ply===0&&props.onResumeStudy&&savedStudyExists(game.id))return <button className="record-branch" onClick={()=>props.onResumeStudy?.()}>↳ 保存した変化を開く</button>;
       return null;
     }} embedded headerTarget={captionExportTarget} onShare={copyShare} owner={recordOwner} game={game} ply={safePly} active={!props.suspended} onPrepare={props.onPrepareAnalysis} onBusyChange={busy=>props.onDialogChange?.(props.summary.id,busy)} onPick={(next,record)=>{if(record.id===game.id&&positionKey(record.initial)===positionKey(game.initial)&&record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw))moveTo(next);}}/>}
-    modal={<DetailPanel open={dialogOpen} tab={detailTab} onHeaderTarget={setHeaderTarget} onClose={() => closeDetails()}>
+    modal={<>{workspace?.selected&&workspace.settingsTarget&&createPortal(<div onKeyDown={event=>{event.stopPropagation();if(event.key==='Escape')workspace.closeSettings?.();}}>{settings}</div>,workspace.settingsTarget)}<DetailPanel open={dialogOpen} tab={detailTab} onHeaderTarget={setHeaderTarget} onClose={() => closeDetails()}>
       <div className="record-pane" hidden={detailTab !== 'record'}>{!workspace && game && <RecordAnalysisPanel recordSelector={<div className="record-kind" role="group" aria-label="棋譜の種類"><button aria-pressed="true">本譜</button><button disabled title="盤面の駒を動かすと変化を作成できます">変化</button></div>} headerTarget={headerTarget} owner={recordOwner} game={game} ply={safePly} active={dialogOpen && detailTab === 'record' && !props.suspended} onPrepare={props.onPrepareAnalysis} onPick={(next,record) => { if(record.id===game.id && positionKey(record.initial)===positionKey(game.initial) && record.moveList.slice(0,next).every((m,i)=>m.raw===game.moveList[i]?.raw)) { moveTo(next); closeDetails(false); } }} />}</div>
       <div hidden={detailTab !== 'analysis'} ref={setDetailsTarget} className="unified-analysis" />
-      <div hidden={detailTab !== 'settings'}>{settings}</div>
-    </DetailPanel>} />;
+      {!workspace&&<div hidden={detailTab !== 'settings'}>{settings}</div>}
+    </DetailPanel></>} />;
 }
 
 function connectionLabel(state: ConnectionState): string { return { connecting:'接続中',online:'オンライン',stale:'stale',offline:'fixture',paused:'再接続待ち' }[state]; }
