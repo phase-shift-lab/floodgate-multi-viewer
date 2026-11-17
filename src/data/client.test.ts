@@ -31,3 +31,21 @@ describe('pollDelay', () => {
     expect(pollDelay(99, true)).toBe(60_000);
   });
 });
+
+it('shared records bypass today and never substitute fixture moves on failure',async()=>{
+ vi.stubEnv('VITE_API_BASE','https://relay.example');vi.resetModules();
+ const fetchMock=vi.fn().mockResolvedValue(new Response('V2.2\nN+PastAlpha\nN-PastBeta\nPI\n+\n+7776FU\n%TORYO\n'));
+ vi.stubGlobal('fetch',fetchMock);
+ const {loadSharedGame}=await import('./sharedGame');
+ const id='wdoor+floodgate-900-0+PastAlpha+PastBeta+20261101000000';
+ const signal=new AbortController().signal;
+ expect(await loadSharedGame(id,[],signal)).toMatchObject({fixture:false,game:{id,live:false,moves:1}});
+ expect(fetchMock.mock.calls[0][0]).toBe('https://relay.example/api/csa?file='+encodeURIComponent(id+'.csa'));
+ fetchMock.mockResolvedValue(new Response('missing',{status:404}));
+ await expect(loadSharedGame(id,[],signal)).rejects.toThrow('404');
+ fetchMock.mockResolvedValue(new Response('<html>unavailable</html>'));
+ await expect(loadSharedGame(id,[],signal)).rejects.toThrow('CSA');
+ fetchMock.mockClear();
+ for(const bad of ['../file','wdoor+g+A+B+20261101000000/other','wdoor+g+A+B+20261101000000?x=1','wdoor+g+A+B+20261101000000%2Fcsa'])await expect(loadSharedGame(bad,[],signal)).rejects.toThrow();
+ expect(fetchMock).not.toHaveBeenCalled();
+});

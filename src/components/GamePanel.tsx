@@ -44,6 +44,7 @@ interface Props {
   onExpand: () => void;
   expanded: boolean;
   boardCount: BoardCount;
+  strictGame?: boolean;
   fixture: boolean;
   onOrientationChange: (flipped: boolean) => void;
   initialAnalysisEnabled?: boolean;
@@ -115,7 +116,7 @@ export function GamePanel(props: Props) {
     const controller = new AbortController();
     const poll = async () => {
       try {
-        const result = await loadGame(props.summary, controller.signal);
+        const result = props.strictGame ? await loadGame(props.summary, controller.signal,{allowFixture:false}) : await loadGame(props.summary, controller.signal);
         if (controller.signal.aborted) return;
         const failureCount = result.fixture ? failures.current + 1 : 0;
         failures.current = failureCount;
@@ -145,7 +146,7 @@ export function GamePanel(props: Props) {
     };
     void poll();
     return () => { controller.abort(); if (timeout) clearTimeout(timeout); };
-  }, [props.summary, props.suspended, props.sound, props.fixture]);
+  }, [props.summary, props.suspended, props.sound, props.fixture, props.strictGame]);
 
   const maxPly = game?.moveList.length ?? 0;
   const safePly = Math.min(ply, maxPly);

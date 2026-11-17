@@ -16,6 +16,52 @@ beforeEach(()=>{
 });
 afterEach(()=>{cleanup();vi.useRealTimers();vi.clearAllMocks();});
 
+it('opens a shared past game absent from today at the requested move and orientation',async()=>{
+ const id='wdoor+floodgate-900-0+PastAlpha+PastBeta+20261101000000';
+ history.replaceState(null,'','/?game='+encodeURIComponent(id)+'&view=archive&ply=2&boards=1&orientation=white');
+ vi.mocked(loadCatalog).mockResolvedValue({games:[fixtureSummaries[1]],fixture:false,stale:false,fetchedAt:new Date()});
+ vi.mocked(loadGame).mockImplementation(async summary=>({game:{...fixtureGames[0],...summary,live:false},fixture:false,stale:false,fetchedAt:new Date()}));
+ await act(async()=>{render(<App/>);});
+ expect(document.querySelector('.archive-search')).toBeNull();
+ expect(screen.getByRole('button',{name:'対局を選ぶ'})).toHaveTextContent('PastAlpha vs PastBeta');
+ expect(screen.getByRole('grid',{name:'将棋盤 2手目'})).toBeInTheDocument();
+ expect(document.querySelector('.file-labels')).toHaveTextContent('123456789');
+ expect(loadGame).toHaveBeenCalledWith(expect.objectContaining({id,csaPath:id+'.csa'}),expect.any(AbortSignal),{allowFixture:false});
+ await act(async()=>{await vi.advanceTimersByTimeAsync(31_000);});
+ expect(screen.getByRole('grid',{name:'将棋盤 2手目'})).toBeInTheDocument();
+});
+
+it('shows a shared-record error without displaying another game or a fixture',async()=>{
+ const id='wdoor+floodgate-900-0+PastAlpha+PastBeta+20261101000000';
+ history.replaceState(null,'','/?game='+encodeURIComponent(id)+'&view=archive&boards=1');
+ vi.mocked(loadCatalog).mockResolvedValue({games:fixtureSummaries,fixture:false,stale:false,fetchedAt:new Date()});
+ vi.mocked(loadGame).mockResolvedValue({game:fixtureGames[0],fixture:true,stale:true,fetchedAt:new Date()});
+ await act(async()=>{render(<App/>);});
+ expect(screen.getByRole('alert')).toHaveTextContent('共有された棋譜を開けませんでした');
+ expect(screen.queryByRole('grid')).toBeNull();
+ await act(async()=>{await vi.advanceTimersByTimeAsync(31_000);});
+ expect(screen.queryByRole('grid')).toBeNull();
+ fireEvent.change(screen.getByLabelText('表示局数'),{target:{value:'3'}});
+ expect(screen.queryByRole('grid')).toBeNull();
+ fireEvent.click(screen.getAllByRole('button',{name:'過去対局'})[0]);
+ fireEvent.click(document.querySelector<HTMLButtonElement>('.archive-list button')!);
+ expect(screen.queryByText(/共有された棋譜を開けませんでした/)).toBeNull();
+});
+
+it('retains the resolved shared record if count changes during other initial-game checks',async()=>{
+ const id='wdoor+floodgate-900-0+PastAlpha+PastBeta+20261101000000';
+ history.replaceState(null,'','/?game='+encodeURIComponent(id)+'&ply=2&boards=3');
+ vi.mocked(loadCatalog).mockResolvedValue({games:[{...fixtureSummaries[1],live:true,moves:0}],fixture:false,stale:false,fetchedAt:new Date()});
+ vi.mocked(loadGame).mockImplementation(async summary=>summary.id===id
+  ? {game:{...fixtureGames[0],...summary,live:false},fixture:false,stale:false,fetchedAt:new Date()}
+  : new Promise<GameResult>(()=>{}));
+ await act(async()=>{render(<App/>);});
+ expect(screen.queryByRole('grid')).toBeNull();
+ await act(async()=>{fireEvent.change(screen.getByLabelText('表示局数'),{target:{value:'1'}});});
+ expect(screen.getByRole('button',{name:'対局を選ぶ'})).toHaveTextContent('PastAlpha vs PastBeta');
+ expect(screen.getByRole('grid',{name:'将棋盤 2手目'})).toBeInTheDocument();
+});
+
 it('保存した検索条件を復元し、指定日の取得はユーザー操作まで行わない',async()=>{
   saveArchiveFilters({...DEFAULT_ARCHIVE_FILTERS,minRate:'2500',maxRate:'4000',historyDate:'2026-11-06',group:'past-group',resultFilter:'後手'});
   const past={...fixtureSummaries[0],group:'past-group',blackRate:3000,whiteRate:3500,live:false,result:'後手勝ち',startedAt:'2026-11-06T12:00:00+09:00'};

@@ -69,7 +69,7 @@ export async function loadDay(date: string, signal: AbortSignal): Promise<Catalo
   }
 }
 
-export async function loadGame(summary: GameSummary, signal: AbortSignal): Promise<GameResult> {
+export async function loadGame(summary: GameSummary, signal: AbortSignal, options: {allowFixture?:boolean} = {}): Promise<GameResult> {
   try {
     const response = await fetchText(`/api/csa?file=${encodeURIComponent(summary.csaPath)}`, signal);
     if (!/^V\d+(?:\.\d+)?\s*$/m.test(response.text) || !/^N\+.+$/m.test(response.text) || !/^N-.+$/m.test(response.text)) throw new DataError('CSAではない応答を受信しました');
@@ -78,7 +78,7 @@ export async function loadGame(summary: GameSummary, signal: AbortSignal): Promi
       live: summary.live && parsed.live, endedAt: parsed.endedAt ?? summary.endedAt,
       result: parsed.result ?? summary.result, sourceText: response.text }, stale: response.stale, fixture: false, fetchedAt: new Date() };
   } catch (error) {
-    if (signal.aborted) throw error;
+    if (signal.aborted || options.allowFixture === false) throw error;
     return { game: fixtureGame(summary), stale: true, fixture: true, fetchedAt: new Date() };
   }
 }
